@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f1f4f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1614" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Пилатес">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Учёт пилатеса</title>
+<style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>
+/* Layout: sticky name + tabs, one toolbar per tab, cards and tables below; forms open as a sheet on top. */
+:root {
+  --bg: #f1f4f3;
+  --surface: #ffffff;
+  --surface-2: #e8eeec;
+  --line: #d3dcd9;
+  --line-soft: #e6ecea;
+  --fg: #14211e;
+  --muted: #586964;
+  --accent: #1d6b66;
+  --accent-ink: #14504c;
+  --accent-fg: #ffffff;
+  --accent-soft: #d6ebe8;
+  --warn: #9a4f06;
+  --warn-soft: #fbe8d0;
+  --bad: #a8322a;
+  --ok: #2b7550;
+  --ok-soft: #d9efe3;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #2a9d6f;
+  --s4: #8a5cd0;
+  --shadow: 0 1px 2px rgba(20, 33, 30, .06), 0 8px 24px rgba(20, 33, 30, .08);
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1614; --surface: #16211f; --surface-2: #1d2b28; --line: #2c3d39; --line-soft: #233430;
+    --fg: #e5eeeb; --muted: #94a69f; --accent: #5cbdb3; --accent-ink: #8fd9d0; --accent-fg: #082320; --accent-soft: #1b3834;
+    --warn: #eaa862; --warn-soft: #382816; --bad: #f1897d; --ok: #72c99b; --ok-soft: #173126;
+    --s1: #3987e5; --s2: #d95926; --s3: #3dba87; --s4: #a07be0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1614; --surface: #16211f; --surface-2: #1d2b28; --line: #2c3d39; --line-soft: #233430;
+  --fg: #e5eeeb; --muted: #94a69f; --accent: #5cbdb3; --accent-ink: #8fd9d0; --accent-fg: #082320; --accent-soft: #1b3834;
+  --warn: #eaa862; --warn-soft: #382816; --bad: #f1897d; --ok: #72c99b; --ok-soft: #173126;
+  --s1: #3987e5; --s2: #d95926; --s3: #3dba87; --s4: #a07be0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 400 14px/1.45 var(--font-body); padding-inline: 16px; padding-block: 0 48px; }
+.app { max-width: 1180px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; font-weight: 600; text-wrap: balance; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); padding-top: 14px; border-bottom: 1px solid var(--line); }
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-size: 24px; letter-spacing: .01em; }
+.brand .sub { color: var(--muted); font-size: 13px; }
+.modebadge { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.modebadge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.modebadge.local::before { background: var(--warn); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; margin-top: 10px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { background: none; border: 0; border-bottom: 3px solid transparent; padding: 9px 14px 8px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] { color: var(--accent-ink); border-bottom-color: var(--accent); }
+
+/* toolbar */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-block: 16px 14px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.monthnav { display: inline-flex; align-items: center; gap: 6px; }
+.iconbtn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 18px; line-height: 1; }
+.iconbtn:hover { background: var(--surface-2); }
+select, input[type="text"], input[type="number"], input[type="date"], input:not([type]), textarea {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-height: 34px; max-width: 100%;
+}
+select { padding-right: 6px; }
+.check { display: inline-flex; align-items: center; gap: 8px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 14px; min-height: 34px; font-weight: 500; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
+.btn.danger.armed { background: var(--bad); color: var(--bg); }
+.btn.small { padding: 3px 10px; min-height: 28px; font-size: 13px; }
+.btn.link { border: 0; background: none; color: var(--accent-ink); padding: 3px 6px; text-decoration: underline; text-underline-offset: 2px; }
+.chips { display: inline-flex; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 13px; font-weight: 500; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+
+/* banners */
+.banner { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; background: var(--warn-soft); color: var(--fg); border: 1px solid var(--warn); border-radius: 10px; padding: 10px 14px; margin-top: 14px; }
+.banner.note { background: var(--surface-2); border-color: var(--line); }
+
+/* cards */
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-bottom: 14px; }
+.grid.four { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.grid.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.card.hero { border-color: var(--accent); box-shadow: var(--shadow); }
+.card.dim { opacity: .62; }
+.card h3 { font-size: 16px; }
+.card .row { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 10px; }
+.card .row .who { display: flex; align-items: center; gap: 10px; }
+.cnt { color: var(--muted); font-size: 12.5px; }
+.big { font: 600 30px/1.1 var(--font-display); letter-spacing: .005em; }
+.card.hero .big { font-size: clamp(36px, 7vw, 50px); }
+.biglabel { color: var(--muted); font-size: 12.5px; margin: 2px 0 12px; }
+.kv { display: grid; gap: 6px; margin: 0; }
+.kv > div { display: flex; justify-content: space-between; gap: 12px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.ok { color: var(--ok); }
+.muted { color: var(--muted); }
+.curbadge { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font: 600 14px var(--font-display); flex: none; }
+
+/* sections and tables */
+.sec { margin-top: 26px; }
+.sec > h2 { font-size: 18px; margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.sec > h2 small { font: 400 13px var(--font-body); color: var(--muted); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; }
+th { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--surface); }
+td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.unpaid td { background: var(--warn-soft); }
+tr.total td { font-weight: 600; background: var(--surface-2); }
+tr.gone td { color: var(--muted); }
+.cell-sub { color: var(--muted); font-size: 12px; }
+.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); white-space: nowrap; }
+.pill.on { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.pill.pause { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.paidtoggle { border-radius: 999px; padding: 2px 11px; font-size: 12.5px; border: 1px solid var(--warn); background: var(--warn-soft); color: var(--warn); font-weight: 500; white-space: nowrap; }
+.paidtoggle.on { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.empty { padding: 34px 20px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; }
+.empty b { color: var(--fg); display: block; font: 600 17px var(--font-display); margin-bottom: 4px; }
+.scale { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.scale b { color: var(--fg); font-weight: 500; }
+.rates { display: grid; gap: 14px; }
+.rate { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; padding-bottom: 14px; border-bottom: 1px solid var(--line-soft); }
+.rate:last-of-type { border-bottom: 0; }
+.rate label { display: grid; gap: 4px; font-weight: 500; font-size: 13px; }
+.rate .scale { grid-column: 1 / -1; margin: 0; }
+
+/* chart */
+.chartbox { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; position: relative; }
+.chartgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 24px; }
+.chartcell { min-width: 0; }
+@media (max-width: 800px) { .chartgrid { grid-template-columns: minmax(0, 1fr); } }
+.chartscroll { overflow-x: auto; }
+.chartscroll svg { display: block; min-width: 560px; width: 100%; height: auto; }
+.panelttl { font-weight: 600; font-size: 13.5px; margin: 14px 0 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 8px; color: var(--muted); font-size: 13px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.tip { position: absolute; z-index: 5; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 8px 10px; font-size: 12.5px; min-width: 150px; }
+.tip b { display: block; margin-bottom: 4px; }
+.tip div { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+
+/* modal */
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(8, 16, 14, .5); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: calc(24px + env(safe-area-inset-top, 0px)) 14px calc(24px + env(safe-area-inset-bottom, 0px)); }
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; width: 100%; max-width: 520px; padding: 20px 22px 18px; box-shadow: var(--shadow); }
+.sheet h2 { font-size: 20px; margin-bottom: 14px; }
+.form { display: grid; gap: 12px; }
+.form label { display: grid; gap: 4px; font-weight: 500; font-size: 13px; }
+.form label.check { display: flex; font-size: 14px; }
+.form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form label > input:not([type=checkbox]):not([type=radio]), .form label > select, .rate label > input, .rate label > select { width: 100%; min-width: 0; }
+.form .two > label { min-width: 0; }
+.withunit { width: 100%; }
+.form .hint { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.form .errmsg { color: var(--bad); font-size: 13px; min-height: 0; }
+.withunit { display: flex; align-items: center; gap: 8px; }
+.withunit input { flex: 1; min-width: 0; }
+.withunit span { color: var(--muted); font-weight: 500; min-width: 18px; }
+.pricebox { background: var(--surface-2); border-radius: 8px; padding: 9px 12px; font-size: 13px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg label { position: relative; display: block; }
+.seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.seg span { display: block; min-width: 46px; text-align: center; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-weight: 500; }
+.seg input:checked + span { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg.cur span { font: 600 18px var(--font-display); min-width: 58px; }
+.actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
+.actions .left { margin-right: auto; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 60; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; box-shadow: var(--shadow); max-width: calc(100vw - 32px); }
+.toast.bad { background: var(--bad); color: #fff; }
+body.noscroll { overflow: hidden; }
+.loading { padding: 60px 0; text-align: center; color: var(--muted); }
+@media (max-width: 560px) {
+  .form .two { grid-template-columns: 1fr; }
+  .brand h1 { font-size: 21px; }
+  .sheet { padding: 18px 16px 16px; }
+}
+html { -webkit-text-size-adjust: 100%; }
+button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+@media (max-width: 700px) { input, select, textarea { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body><div class="app">
+  <div class="top">
+    <div class="head">
+      <div class="brand"><h1>Учёт пилатеса</h1><span class="sub">реформер · мат · студия</span></div>
+      <span id="mode" class="modebadge"></span>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Разделы"></nav>
+  </div>
+  <div id="banner"></div>
+  <div id="toolbar" class="toolbar"></div>
+  <main id="view"><div class="loading">Загружаю данные…</div></main>
+</div>
+<div id="modal" class="overlay" hidden></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<input type="file" id="impfile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- константы и утилиты ---------- */
+  var CUR = ['₸', '₽', '$'];
+  var CURNAME = { '₸': 'Тенге', '₽': 'Рубли', '$': 'Доллары' };
+  var MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  var MON3 = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  var WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  var TYPES = ['Реформер', 'Мат'];
+  var DIRS = ['Реформер', 'Мат', 'Оба'];
+  var STATUSES = ['Активный', 'Пауза', 'Ушёл'];
+  var TABS = [['summary', 'Сводка'], ['journal', 'Журнал'], ['clients', 'Клиенты'], ['studio', 'Студия'], ['months', 'По месяцам'], ['backup', 'Копия']];
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function todayStr() { var d = new Date(); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  function dayNum(s) { var a = s.split('-'); return Math.round(Date.UTC(+a[0], +a[1] - 1, +a[2]) / 86400000); }
+  function fmtDate(s) { if (!s) return ''; var a = s.split('-'); return a[2] + '.' + a[1] + '.' + a[0]; }
+  function fmtDay(s) { var a = s.split('-'); var d = new Date(+a[0], +a[1] - 1, +a[2]); return WD[d.getDay()] + ' ' + a[2] + '.' + a[1] + '.' + a[0]; }
+  function daysInMonth(m) { var a = m.split('-'); return new Date(+a[0], +a[1], 0).getDate(); }
+  function plural(n, f) { var a = Math.abs(n) % 100, b = a % 10; if (a > 10 && a < 20) return f[2]; if (b > 1 && b < 5) return f[1]; if (b === 1) return f[0]; return f[2]; }
+  function numStr(n, max) { return (Math.round(n * 100) / 100).toLocaleString('ru-RU', { maximumFractionDigits: max == null ? 2 : max }); }
+  function money(v, c) {
+    var n = Number(v) || 0;
+    if (c === '$') return '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(Math.round(n * 100) / 100) ? 0 : 2, maximumFractionDigits: 2 });
+    return numStr(n) + ' ' + (c || '');
+  }
+  function moneyDash(v, c) { return v ? money(v, c) : '<span class="muted">—</span>'; }
+  function newId(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function num(v) { if (v === '' || v == null) return null; var n = Number(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+
+  /* ---------- состояние ---------- */
+  var S = { clients: {}, sessions: {}, studio: {}, studios: [], tab: 'summary', month: todayStr().slice(0, 7), year: new Date().getFullYear(),
+    onlyUnpaid: false, fClient: '', fStatus: 'active', loaded: {}, mode: '', ready: false, rd: null };
+  var DB = null;
+  var busy = {};
+  var LKEY = 'uchet-pilatesa-v1';
+
+  try { var t0 = localStorage.getItem('uchet-pilatesa-tab'); if (t0 && TABS.some(function (t) { return t[0] === t0; })) S.tab = t0; } catch (e) { }
+
+  var lastBackup = '';
+  try { lastBackup = localStorage.getItem('uchet-pilatesa-backup') || ''; } catch (e) { }
+  function loadLocal() {
+    try {
+      var j = JSON.parse(localStorage.getItem(LKEY) || 'null');
+      if (j) { S.clients = j.clients || {}; S.sessions = j.sessions || {}; S.studio = j.studio || {}; S.studios = j.studios || []; }
+    } catch (e) { }
+  }
+  function saveLocal() {
+    try {
+      localStorage.setItem(LKEY, JSON.stringify({ clients: S.clients, sessions: S.sessions, studio: S.studio, studios: S.studios }));
+      S.saveFail = false;
+      if (!S.persisted && navigator.storage && navigator.storage.persist) { S.persisted = true; try { navigator.storage.persist().catch(function () { }); } catch (e) { } }
+    } catch (e) { if (!S.saveFail) { S.saveFail = true; toast('Не удалось сохранить на устройстве. Выгрузите копию в Excel.', 'bad'); } }
+  }
+
+  var raf = 0;
+  function sched() { if (raf) return; raf = requestAnimationFrame(function () { raf = 0; render(); }); }
+
+  function initData() { S.mode = 'local'; loadLocal(); S.ready = true; render(); }
+  function put(coll, id, data) { S[coll][id] = data; saveLocal(); sched(); return Promise.resolve(true); }
+  function del(coll, id) { delete S[coll][id]; saveLocal(); sched(); return Promise.resolve(true); }
+  function putStudios(list) { S.studios = list; saveLocal(); sched(); return Promise.resolve(true); }
+
+  var toastT = 0;
+  function toast(msg, kind) {
+    var el = $('#toast'); el.textContent = msg; el.className = 'toast' + (kind === 'bad' ? ' bad' : ''); el.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(function () { el.hidden = true; }, 3800);
+  }
+
+  /* ---------- производные данные ---------- */
+  function clientList() {
+    return Object.keys(S.clients).map(function (id) { var c = S.clients[id]; return Object.assign({ id: id }, c); })
+      .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ru'); });
+  }
+  function sessionList() { return Object.keys(S.sessions).map(function (id) { return Object.assign({ id: id }, S.sessions[id]); }); }
+  function studioList() { return Object.keys(S.studio).map(function (id) { return Object.assign({ id: id }, S.studio[id]); }); }
+  function curOf(s) { var c = S.clients[s.clientId]; return c ? c.currency : ''; }
+  function priceOf(s) {
+    if (s.price != null && s.price !== '') return Number(s.price) || 0;
+    var c = S.clients[s.clientId]; if (!c) return 0;
+    return Number(s.type === 'Мат' ? c.priceM : c.priceR) || 0;
+  }
+  function studioTotal(t) { return (Number(t.rate) || 0) + (Number(t.adjust) || 0); }
+  function rateFor(name, n) {
+    var s = S.studios.filter(function (x) { return x.name === name; })[0];
+    if (!s || !(n >= 1)) return 0;
+    var cap = Math.max(1, Number(s.cap) || 1);
+    return (Number(s.base) || 0) + (Number(s.step) || 0) * (Math.min(n, cap) - 1);
+  }
+  function emptyCur() { return { '₸': 0, '₽': 0, '$': 0 }; }
+  function aggregate(list) {
+    var out = {}; CUR.forEach(function (c) { out[c] = { n: 0, sum: 0, paid: 0 }; });
+    list.forEach(function (s) { var c = curOf(s); if (!out[c]) return; var p = priceOf(s); out[c].n++; out[c].sum += p; if (s.paid) out[c].paid += p; });
+    return out;
+  }
+  function sum(list, fn) { return list.reduce(function (a, x) { return a + fn(x); }, 0); }
+  function hasDemo() {
+    return ['clients', 'sessions', 'studio'].some(function (c) { return Object.keys(S[c]).some(function (k) { return S[c][k] && S[c][k].demo; }); });
+  }
+
+  /* ---------- общие куски разметки ---------- */
+  function yearOptions() {
+    var ys = {}; var cy = new Date().getFullYear();
+    for (var y = cy - 2; y <= cy + 1; y++) ys[y] = 1;
+    ys[S.year] = 1; ys[+S.month.slice(0, 4)] = 1;
+    sessionList().forEach(function (s) { ys[+s.date.slice(0, 4)] = 1; });
+    studioList().forEach(function (s) { ys[+s.date.slice(0, 4)] = 1; });
+    return Object.keys(ys).map(Number).sort();
+  }
+  function monthNav() {
+    var a = S.month.split('-').map(Number);
+    return '<div class="monthnav"><button class="iconbtn" data-act="mprev" aria-label="Предыдущий месяц">‹</button>' +
+      '<select data-bind="month" aria-label="Месяц">' + MONTHS.map(function (n, i) { return '<option value="' + (i + 1) + '"' + (i + 1 === a[1] ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select>' +
+      '<select data-bind="year" aria-label="Год">' + yearOptions().map(function (y) { return '<option' + (y === a[0] ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<button class="iconbtn" data-act="mnext" aria-label="Следующий месяц">›</button></div>';
+  }
+  function yearNav() {
+    return '<div class="monthnav"><button class="iconbtn" data-act="yprev" aria-label="Предыдущий год">‹</button>' +
+      '<select data-bind="yearonly" aria-label="Год">' + yearOptions().map(function (y) { return '<option' + (y === S.year ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+      '<button class="iconbtn" data-act="ynext" aria-label="Следующий год">›</button></div>';
+  }
+  function curBadge(c) { return '<span class="curbadge" title="' + esc(CURNAME[c] || '') + '">' + esc(c || '?') + '</span>'; }
+  function emptyBox(title, text) { return '<div class="empty"><b>' + esc(title) + '</b>' + text + '</div>'; }
+
+  /* ---------- Сводка ---------- */
+  function viewSummary() {
+    if (!hasAnyData()) return welcomeHTML();
+    var m = S.month, weeks = daysInMonth(m) / 7;
+    var ms = sessionList().filter(function (s) { return s.date.indexOf(m) === 0; });
+    var agg = aggregate(ms);
+    var st = studioList().filter(function (t) { return t.date.indexOf(m) === 0; });
+    var sAcc = sum(st, studioTotal), sPaid = sum(st.filter(function (t) { return t.paid; }), studioTotal);
+    var h = '<div class="grid four">';
+    CUR.forEach(function (c) {
+      var a = agg[c];
+      h += '<section class="card' + (a.n ? '' : ' dim') + '"><div class="row"><div class="who">' + curBadge(c) + '<h3>Клиенты, ' + CURNAME[c].toLowerCase() + '</h3></div><span class="cnt">' + a.n + ' ' + plural(a.n, ['занятие', 'занятия', 'занятий']) + '</span></div>' +
+        '<div class="big">' + (a.n ? money(a.sum, c) : '—') + '</div><div class="biglabel">начислено</div>' +
+        '<dl class="kv"><div><dt>Оплачено</dt><dd>' + (a.n ? money(a.paid, c) : '—') + '</dd></div>' +
+        '<div><dt>Не оплачено</dt><dd class="' + (a.sum - a.paid > 0 ? 'warn' : '') + '">' + (a.n ? money(a.sum - a.paid, c) : '—') + '</dd></div>' +
+        '<div><dt>Средняя цена занятия</dt><dd>' + (a.n ? money(a.sum / a.n, c) : '—') + '</dd></div></dl></section>';
+    });
+    h += '<section class="card' + (st.length ? '' : ' dim') + '"><div class="row"><div class="who">' + curBadge('₸') + '<h3>Работа в студии</h3></div><span class="cnt">' + st.length + ' ' + plural(st.length, ['занятие', 'занятия', 'занятий']) + '</span></div>' +
+      '<div class="big">' + (st.length ? money(sAcc, '₸') : '—') + '</div><div class="biglabel">заработано (всегда в тенге)</div>' +
+      '<dl class="kv"><div><dt>Выплачено</dt><dd>' + (st.length ? money(sPaid, '₸') : '—') + '</dd></div>' +
+      '<div><dt>Ждёт выплаты</dt><dd class="' + (sAcc - sPaid > 0 ? 'warn' : '') + '">' + (st.length ? money(sAcc - sPaid, '₸') : '—') + '</dd></div>' +
+      '<div><dt>Средняя ставка за занятие</dt><dd>' + (st.length ? money(sAcc / st.length, '₸') : '—') + '</dd></div></dl></section>';
+    h += '</div>';
+
+    var unpaidCount = ms.filter(function (s) { return !s.paid; }).length;
+    if (unpaidCount) {
+      h += '<div class="banner"><span><b>' + unpaidCount + '</b> ' + plural(unpaidCount, ['занятие', 'занятия', 'занятий']) + ' без оплаты в этом месяце.</span><button class="btn small" data-act="gounpaid">Показать в журнале</button></div>';
+    }
+
+    // по типам
+    h += '<div class="sec"><h2>По типам занятий <small>начислено</small></h2><div class="tablewrap"><table><thead><tr><th>Тип</th>' +
+      CUR.map(function (c) { return '<th class="num">' + c + '</th>'; }).join('') + '<th class="num">Занятий</th></tr></thead><tbody>';
+    TYPES.forEach(function (t) {
+      var l = ms.filter(function (s) { return s.type === t; }), a = aggregate(l);
+      h += '<tr><td>' + t + '</td>' + CUR.map(function (c) { return '<td class="num">' + moneyDash(a[c].sum, c) + '</td>'; }).join('') + '<td class="num">' + l.length + '</td></tr>';
+    });
+    h += '</tbody></table></div></div>';
+
+    // по клиентам
+    var rows = clientList().map(function (c) {
+      var l = ms.filter(function (s) { return s.clientId === c.id; });
+      var r = l.filter(function (s) { return s.type === 'Реформер'; }).length;
+      var acc = sum(l, priceOf), paid = sum(l.filter(function (s) { return s.paid; }), priceOf);
+      return { c: c, n: l.length, r: r, mt: l.length - r, acc: acc, paid: paid };
+    }).filter(function (x) { return x.c.status !== 'Ушёл' || x.n > 0; });
+    var tn = sum(rows, function (x) { return x.n; });
+    h += '<div class="sec"><h2>По клиентам <small>суммы в валюте клиента</small></h2>';
+    if (!rows.length) { h += emptyBox('Клиентов пока нет', 'Добавьте первого клиента на вкладке «Клиенты».'); }
+    else {
+      h += '<div class="tablewrap"><table><thead><tr><th>Клиент</th><th class="num">Реформер</th><th class="num">Мат</th><th class="num">Всего</th><th class="num">В неделю</th><th class="num">Начислено</th><th class="num">Оплачено</th><th class="num">Не оплачено</th></tr></thead><tbody>';
+      rows.forEach(function (x) {
+        var cu = x.c.currency, debt = x.acc - x.paid;
+        h += '<tr><td>' + esc(x.c.name) + '</td><td class="num">' + x.r + '</td><td class="num">' + x.mt + '</td><td class="num">' + x.n + '</td><td class="num">' + numStr(x.n / weeks, 1) + '</td>' +
+          '<td class="num">' + moneyDash(x.acc, cu) + '</td><td class="num">' + moneyDash(x.paid, cu) + '</td><td class="num ' + (debt > 0 ? 'warn' : '') + '">' + moneyDash(debt, cu) + '</td></tr>';
+      });
+      h += '<tr class="total"><td>Итого занятий</td><td class="num">' + sum(rows, function (x) { return x.r; }) + '</td><td class="num">' + sum(rows, function (x) { return x.mt; }) + '</td><td class="num">' + tn + '</td><td class="num">' + numStr(tn / weeks, 1) + '</td><td colspan="3" class="muted">суммы смотрите по валютам выше</td></tr>';
+      h += '</tbody></table></div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  /* ---------- Журнал ---------- */
+  function viewJournal() {
+    var l = sessionList().filter(function (s) { return s.date.indexOf(S.month) === 0; });
+    if (S.fClient) l = l.filter(function (s) { return s.clientId === S.fClient; });
+    if (S.onlyUnpaid) l = l.filter(function (s) { return !s.paid; });
+    l.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1); });
+    if (!l.length) {
+      return emptyBox('Занятий не найдено', S.onlyUnpaid || S.fClient ? 'Попробуйте снять фильтры.' : 'В этом месяце записей нет. Нажмите «+ Занятие», чтобы добавить первое.');
+    }
+    var agg = aggregate(l);
+    var h = '<div class="tablewrap"><table><thead><tr><th>Дата</th><th>Клиент</th><th>Тип</th><th class="num">Цена</th><th>Оплата</th><th>Заметка</th><th></th></tr></thead><tbody>';
+    l.forEach(function (s) {
+      var c = S.clients[s.clientId], cu = c ? c.currency : '';
+      var custom = s.price != null && s.price !== '';
+      h += '<tr class="' + (s.paid ? '' : 'unpaid') + '"><td>' + fmtDay(s.date) + '</td><td>' + (c ? esc(c.name) : '<span class="bad">клиент удалён</span>') + '</td><td>' + esc(s.type) + '</td>' +
+        '<td class="num">' + money(priceOf(s), cu) + (custom ? ' <span class="cell-sub" title="Цена задана вручную">*</span>' : '') + '</td>' +
+        '<td><button class="paidtoggle' + (s.paid ? ' on' : '') + '" data-act="togglepaid" data-id="' + esc(s.id) + '">' + (s.paid ? 'Оплачено' : 'Не оплачено') + '</button>' +
+        (s.paid && s.paidDate ? ' <span class="cell-sub">' + fmtDate(s.paidDate) + '</span>' : '') + '</td>' +
+        '<td>' + esc(s.note) + '</td><td><button class="btn small" data-act="editsession" data-id="' + esc(s.id) + '">Изменить</button></td></tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<p class="muted" style="margin-top:10px">' + l.length + ' ' + plural(l.length, ['запись', 'записи', 'записей']) + ' · ' +
+      CUR.filter(function (c) { return agg[c].n; }).map(function (c) { return money(agg[c].sum, c); }).join(' · ') + ' · * цена указана вручную</p>';
+    return h;
+  }
+
+  /* ---------- Клиенты ---------- */
+  function viewClients() {
+    var now = todayStr(), nowN = dayNum(now);
+    var l = clientList();
+    if (S.fStatus === 'active') l = l.filter(function (c) { return c.status === 'Активный' || c.status === 'Пауза'; });
+    if (!Object.keys(S.clients).length) return emptyBox('Клиентов пока нет', 'Нажмите «+ Клиент», выберите валюту и укажите цены за занятие.');
+    if (!l.length) return emptyBox('Нет активных клиентов', 'Переключите фильтр на «Все».');
+    var ss = sessionList();
+    var h = '<div class="tablewrap"><table><thead><tr><th>Клиент</th><th>Направление</th><th class="num">Реформер</th><th class="num">Мат</th><th>Статус</th><th class="num">Занятий</th><th class="num">Доход всего</th><th class="num">Не оплачено</th><th>Последнее</th><th class="num">В неделю</th><th></th></tr></thead><tbody>';
+    l.forEach(function (c) {
+      var mine = ss.filter(function (s) { return s.clientId === c.id; });
+      var acc = sum(mine, priceOf), debt = sum(mine.filter(function (s) { return !s.paid; }), priceOf);
+      var last = mine.reduce(function (a, s) { return s.date > a ? s.date : a; }, '');
+      var days = last ? nowN - dayNum(last) : null;
+      var recent = mine.filter(function (s) { return nowN - dayNum(s.date) <= 27 && nowN - dayNum(s.date) >= 0; }).length;
+      var stale = c.status === 'Активный' && days != null && days > 14;
+      var stc = c.status === 'Активный' ? 'on' : c.status === 'Пауза' ? 'pause' : '';
+      h += '<tr class="' + (c.status === 'Ушёл' ? 'gone' : '') + '"><td>' + esc(c.name) + (c.contact ? '<div class="cell-sub">' + esc(c.contact) + '</div>' : '') + '</td>' +
+        '<td>' + esc(c.direction) + '</td><td class="num">' + (c.priceR ? money(c.priceR, c.currency) : '<span class="muted">—</span>') + '</td><td class="num">' + (c.priceM ? money(c.priceM, c.currency) : '<span class="muted">—</span>') + '</td>' +
+        '<td><span class="pill ' + stc + '">' + esc(c.status) + '</span></td><td class="num">' + mine.length + '</td><td class="num">' + moneyDash(acc, c.currency) + '</td>' +
+        '<td class="num ' + (debt > 0 ? 'warn' : '') + '">' + moneyDash(debt, c.currency) + '</td>' +
+        '<td>' + (last ? fmtDate(last) + '<div class="cell-sub ' + (stale ? 'warn' : '') + '">' + (days === 0 ? 'сегодня' : days + ' ' + plural(days, ['день', 'дня', 'дней']) + ' назад') + '</div>' : '<span class="muted">—</span>') + '</td>' +
+        '<td class="num">' + numStr(recent / 4, 1) + '</td><td><button class="btn small" data-act="editclient" data-id="' + esc(c.id) + '">Изменить</button></td></tr>';
+    });
+    h += '</tbody></table></div><p class="muted" style="margin-top:10px">«В неделю» — среднее за последние 4 недели. Оранжевая подпись у даты — активный клиент не занимался больше 14 дней.</p>';
+    return h;
+  }
+
+  /* ---------- Студия ---------- */
+  function scaleHTML(s) {
+    var cap = Math.max(1, Number(s.cap) || 1), out = [];
+    for (var n = 1; n <= 6; n++) {
+      var r = (Number(s.base) || 0) + (Number(s.step) || 0) * (Math.min(n, cap) - 1);
+      out.push('<span>' + n + ' <b>→ ' + money(r, '₸') + '</b></span>');
+    }
+    return '<div class="scale">' + out.join('') + '</div>';
+  }
+  function ratesHTML() {
+    if (!S.rd) S.rd = S.studios.map(function (x) { return Object.assign({}, x); });
+    var h = '<div class="sec"><h2>Условия оплаты студий <small>ставка за занятие зависит от числа участников</small></h2><div class="card"><div class="rates">';
+    if (!S.rd.length) h += '<p class="muted" style="margin:0">Добавьте студию: укажите ставку за одного участника и доплату за каждого следующего.</p>';
+    S.rd.forEach(function (r, i) {
+      h += '<div class="rate"><label class="form-l">Студия<input type="text" data-rate="' + i + ':name" value="' + esc(r.name) + '"></label>' +
+        '<label class="form-l">За 1 участника, ₸<input type="number" min="0" step="any" data-rate="' + i + ':base" value="' + esc(r.base) + '"></label>' +
+        '<label class="form-l">За каждого следующего, ₸<input type="number" min="0" step="any" data-rate="' + i + ':step" value="' + esc(r.step) + '"></label>' +
+        '<label class="form-l">Растёт до, чел.<input type="number" min="1" max="6" step="1" data-rate="' + i + ':cap" value="' + esc(r.cap) + '"></label>' +
+        '<div><button class="btn danger small" data-act="delrate" data-id="' + i + '">Убрать</button></div>' + scaleHTML(r) + '</div>';
+    });
+    h += '<div class="actions"><button class="btn" data-act="addrate">+ Студия</button><button class="btn primary" data-act="saverates">Сохранить условия</button></div></div></div>' +
+      '<p class="muted" style="margin-top:8px">Ставка записывается в занятие при сохранении, поэтому смена условий не меняет прошлые занятия.</p></div>';
+    return h;
+  }
+  function viewStudio() {
+    var l = studioList().filter(function (t) { return t.date.indexOf(S.month) === 0; });
+    l.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1); });
+    var acc = sum(l, studioTotal), paid = sum(l.filter(function (t) { return t.paid; }), studioTotal);
+    var h = '<div class="grid">' +
+      '<section class="card"><div class="biglabel" style="margin:0 0 6px">Заработано за месяц</div><div class="big">' + money(acc, '₸') + '</div></section>' +
+      '<section class="card"><div class="biglabel" style="margin:0 0 6px">Выплачено</div><div class="big">' + money(paid, '₸') + '</div></section>' +
+      '<section class="card"><div class="biglabel" style="margin:0 0 6px">Ждёт выплаты</div><div class="big ' + (acc - paid > 0 ? 'warn' : '') + '">' + money(acc - paid, '₸') + '</div></section></div>';
+    if (!l.length) {
+      h += emptyBox('В этом месяце занятий в студии нет', 'Нажмите «+ Занятие в студии». Ставка посчитается по условиям ниже.');
+    } else {
+      h += '<div class="tablewrap"><table><thead><tr><th>Дата</th><th>Студия</th><th>Тип</th><th class="num">Участников</th><th class="num">Ставка</th><th class="num">Корректировка</th><th class="num">Итого</th><th>Выплата</th><th>Заметка</th><th></th></tr></thead><tbody>';
+      l.forEach(function (t) {
+        h += '<tr class="' + (t.paid ? '' : 'unpaid') + '"><td>' + fmtDay(t.date) + '</td><td>' + esc(t.studio) + '</td><td>' + esc(t.type) + '</td><td class="num">' + esc(t.n) + '</td>' +
+          '<td class="num">' + money(t.rate, '₸') + '</td><td class="num">' + (t.adjust ? (t.adjust > 0 ? '+' : '') + money(t.adjust, '₸') : '<span class="muted">—</span>') + '</td>' +
+          '<td class="num"><b>' + money(studioTotal(t), '₸') + '</b></td>' +
+          '<td><button class="paidtoggle' + (t.paid ? ' on' : '') + '" data-act="togglestudio" data-id="' + esc(t.id) + '">' + (t.paid ? 'Выплачено' : 'Не выплачено') + '</button></td>' +
+          '<td>' + esc(t.note) + '</td><td><button class="btn small" data-act="editstudio" data-id="' + esc(t.id) + '">Изменить</button></td></tr>';
+      });
+      h += '</tbody></table></div>';
+    }
+    return h + ratesHTML();
+  }
+
+  /* ---------- По месяцам ---------- */
+  function monthRows(y) {
+    var rows = [];
+    for (var i = 0; i < 12; i++) rows.push({ n: 0, r: 0, m: 0, acc: emptyCur(), debt: emptyCur(), studio: 0 });
+    sessionList().forEach(function (s) {
+      if (s.date.indexOf(y + '-') !== 0) return;
+      var row = rows[+s.date.slice(5, 7) - 1]; row.n++;
+      if (s.type === 'Мат') row.m++; else row.r++;
+      var c = curOf(s); if (c in row.acc) { var p = priceOf(s); row.acc[c] += p; if (!s.paid) row.debt[c] += p; }
+    });
+    studioList().forEach(function (t) { if (t.date.indexOf(y + '-') === 0) rows[+t.date.slice(5, 7) - 1].studio += studioTotal(t); });
+    return rows;
+  }
+  function niceStep(x) { var p = Math.pow(10, Math.floor(Math.log(x) / Math.LN10)), r = x / p; return (r <= 1 ? 1 : r <= 2 ? 2 : r <= 5 ? 5 : 10) * p; }
+  function compact(v) { return v >= 1e6 ? numStr(v / 1e6, 1) + ' млн' : v >= 1e3 ? numStr(v / 1e3, 1) + ' тыс' : String(v); }
+  function barPath(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, h, w / 2));
+    return 'M' + x + ',' + (y + h) + 'L' + x + ',' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'L' + (x + w - r) + ',' + y + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) + 'L' + (x + w) + ',' + (y + h) + 'Z';
+  }
+  var chartData = [];
+  function panelSVG(pi, rows, title, series) {
+    var data = rows.map(function (r, i) { return { label: MONTHS[i], parts: series.map(function (q) { return { name: q.name, v: q.get(r), cur: q.cur, color: q.color }; }) }; });
+    chartData[pi] = { title: title, data: data };
+    var W = 760, H = 210, L = 52, R = 10, T = 12, B = 28, iw = W - L - R, ih = H - T - B;
+    var mx = Math.max(1, Math.max.apply(null, data.map(function (d) { return d.parts.reduce(function (s, q) { return s + q.v; }, 0); })));
+    var step = niceStep(mx / 3), top = Math.ceil(mx / step) * step;
+    var Y = function (v) { return T + ih - (v / top) * ih; };
+    var slot = iw / 12, bw = Math.min(24, slot * 0.6), svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + title + ' по месяцам">';
+    for (var v = 0; v <= top + 1e-9; v += step) {
+      svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--line)" stroke-width="1"/>' +
+        '<text x="' + (L - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + compact(v) + '</text>';
+    }
+    data.forEach(function (d, i) {
+      var x = L + slot * i + (slot - bw) / 2, acc = 0, used = d.parts.filter(function (q) { return q.v > 0; });
+      used.forEach(function (q, k) {
+        var hh = (q.v / top) * ih, y0 = Y(0) - acc - hh - (k ? 2 : 0);
+        svg += '<path d="' + barPath(x, y0, bw, hh, k === used.length - 1 ? 4 : 0) + '" fill="' + q.color + '"/>';
+        acc += hh + (k ? 2 : 0);
+      });
+      svg += '<text x="' + (L + slot * i + slot / 2) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + MON3[i] + '</text>';
+      svg += '<rect class="hit" data-p="' + pi + '" data-i="' + i + '" x="' + (L + slot * i) + '" y="' + T + '" width="' + slot + '" height="' + ih + '" fill="transparent"/>';
+    });
+    svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(0) + '" y2="' + Y(0) + '" stroke="var(--muted)" stroke-width="1"/></svg>';
+    return svg;
+  }
+  function chartHTML(rows) {
+    chartData = [];
+    var panels = [
+      { t: 'Клиенты, тенге ₸', c: 'var(--s1)', s: [{ name: 'Клиенты', cur: '₸', color: 'var(--s1)', get: function (r) { return r.acc['₸']; } }] },
+      { t: 'Клиенты, рубли ₽', c: 'var(--s3)', s: [{ name: 'Клиенты', cur: '₽', color: 'var(--s3)', get: function (r) { return r.acc['₽']; } }] },
+      { t: 'Клиенты, доллары $', c: 'var(--s4)', s: [{ name: 'Клиенты', cur: '$', color: 'var(--s4)', get: function (r) { return r.acc['$']; } }] },
+      { t: 'Работа в студии, тенге ₸', c: 'var(--s2)', s: [{ name: 'Студия', cur: '₸', color: 'var(--s2)', get: function (r) { return r.studio; } }] }
+    ];
+    var h = '<div class="chartbox" id="chartbox"><div class="legend">' + panels.map(function (p) { return '<span><i style="background:' + p.c + '"></i>' + p.t + '</span>'; }).join('') + '</div><div class="chartgrid">';
+    panels.forEach(function (p, i) {
+      h += '<div class="chartcell"><div class="panelttl">' + p.t + '</div><div class="chartscroll">' + panelSVG(i, rows, p.t, p.s) + '</div></div>';
+    });
+    return h + '</div><div class="tip" id="tip" hidden></div></div>';
+  }
+  function viewMonths() {
+    var y = S.year, rows = monthRows(y);
+    var tot = { n: 0, r: 0, m: 0, acc: emptyCur(), debt: emptyCur(), studio: 0 };
+    rows.forEach(function (r) { tot.n += r.n; tot.r += r.r; tot.m += r.m; tot.studio += r.studio; CUR.forEach(function (c) { tot.acc[c] += r.acc[c]; tot.debt[c] += r.debt[c]; }); });
+    var h = '<div class="sec" style="margin-top:0"><h2>Доход по месяцам <small>у каждого графика свой масштаб, курс не используется</small></h2>' + chartHTML(rows) + '</div>';
+    h += '<div class="sec"><h2>Все месяцы ' + y + ' <small>валюты не пересчитываются по курсу</small></h2><div class="tablewrap"><table style="min-width:900px"><thead><tr><th>Месяц</th><th class="num">Занятий</th><th class="num">Реф.</th><th class="num">Мат</th>' +
+      '<th class="num">Начислено ₸</th><th class="num">Начислено ₽</th><th class="num">Начислено $</th><th class="num">Не оплачено ₸</th><th class="num">Не оплачено ₽</th><th class="num">Не оплачено $</th><th class="num">Студия ₸</th></tr></thead><tbody>';
+    var cur = todayStr().slice(0, 7);
+    rows.forEach(function (r, i) {
+      var key = y + '-' + p2(i + 1);
+      h += '<tr' + (key === cur ? ' style="font-weight:600"' : '') + '><td><button class="btn link" data-act="openmonth" data-id="' + key + '">' + MONTHS[i] + '</button></td><td class="num">' + r.n + '</td><td class="num">' + r.r + '</td><td class="num">' + r.m + '</td>' +
+        CUR.map(function (c) { return '<td class="num">' + moneyDash(r.acc[c], c) + '</td>'; }).join('') +
+        CUR.map(function (c) { return '<td class="num ' + (r.debt[c] > 0 ? 'warn' : '') + '">' + moneyDash(r.debt[c], c) + '</td>'; }).join('') +
+        '<td class="num">' + moneyDash(r.studio, '₸') + '</td></tr>';
+    });
+    h += '<tr class="total"><td>Итого</td><td class="num">' + tot.n + '</td><td class="num">' + tot.r + '</td><td class="num">' + tot.m + '</td>' +
+      CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.acc[c], c) + '</td>'; }).join('') +
+      CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.debt[c], c) + '</td>'; }).join('') +
+      '<td class="num">' + moneyDash(tot.studio, '₸') + '</td></tr></tbody></table></div></div>';
+    return h;
+  }
+
+  /* ---------- общий рендер ---------- */
+  function render() {
+    var mode = $('#mode');
+    mode.className = 'modebadge';
+    mode.textContent = 'Данные хранятся на этом устройстве';
+    $('#tabs').innerHTML = TABS.map(function (t) { return '<button class="tab" role="tab" data-act="tab" data-id="' + t[0] + '" aria-selected="' + (S.tab === t[0]) + '">' + t[1] + '</button>'; }).join('');
+
+    var banner = '';
+    if (S.ready && needBackup() && !S.hideBackup) banner += '<div class="banner note"><span>' + (lastBackup ? 'Копию данных не делали больше двух недель.' : 'Копию данных ещё не делали.') + ' Сохраните файл Excel на случай, если что-то случится с телефоном.</span><span><button class="btn small" data-act="export">Выгрузить в Excel</button> <button class="btn small" data-act="hidebackup">Позже</button></span></div>';
+    if (S.ready && hasDemo()) banner += '<div class="banner"><span>В таблице примерные данные, чтобы было видно, как всё работает.</span><button class="btn small" data-act="cleardemo">Удалить примеры</button></div>';
+    $('#banner').innerHTML = banner;
+
+    var tb = '';
+    var fc = '<select data-bind="fclient" aria-label="Клиент"><option value="">Все клиенты</option>' + clientList().map(function (c) { return '<option value="' + esc(c.id) + '"' + (S.fClient === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select>';
+    if (S.tab === 'summary') tb = monthNav();
+    else if (S.tab === 'journal') tb = monthNav() + fc + '<label class="check"><input type="checkbox" data-bind="unpaid"' + (S.onlyUnpaid ? ' checked' : '') + '> Только неоплаченные</label><span class="spacer"></span><button class="btn primary" data-act="addsession">+ Занятие</button>';
+    else if (S.tab === 'clients') tb = '<div class="chips"><button class="chip" data-act="fstatus" data-id="active" aria-pressed="' + (S.fStatus === 'active') + '">Активные</button><button class="chip" data-act="fstatus" data-id="all" aria-pressed="' + (S.fStatus === 'all') + '">Все</button></div><span class="spacer"></span><button class="btn primary" data-act="addclient">+ Клиент</button>';
+    else if (S.tab === 'studio') tb = monthNav() + '<span class="spacer"></span><button class="btn primary" data-act="addstudio">+ Занятие в студии</button>';
+    else if (S.tab === 'months') tb = yearNav();
+    else tb = '';
+    var tbEl = $('#toolbar');
+    var active = document.activeElement && tbEl.contains(document.activeElement) ? document.activeElement.getAttribute('data-bind') : null;
+    tbEl.innerHTML = tb;
+    if (active) { var again = tbEl.querySelector('[data-bind="' + active + '"]'); if (again) again.focus(); }
+
+    var view = $('#view');
+    if (!S.ready) { view.innerHTML = '<div class="loading">Загружаю данные…</div>'; return; }
+    var scrollers = Array.prototype.map.call(view.querySelectorAll('.tablewrap'), function (n) { return n.scrollLeft; });
+    var focusRate = (document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-rate')) || null;
+    view.innerHTML = S.tab === 'summary' ? viewSummary() : S.tab === 'journal' ? viewJournal() : S.tab === 'clients' ? viewClients() : S.tab === 'studio' ? viewStudio() : S.tab === 'backup' ? viewBackup() : viewMonths();
+    Array.prototype.forEach.call(view.querySelectorAll('.tablewrap'), function (n, i) { if (scrollers[i]) n.scrollLeft = scrollers[i]; });
+    if (focusRate) { var f = view.querySelector('[data-rate="' + focusRate + '"]'); if (f) f.focus(); }
+  }
+
+  /* ---------- модальные формы ---------- */
+  function openModal(html, onMount) {
+    var el = $('#modal');
+    el.innerHTML = '<div class="sheet" role="dialog" aria-modal="true">' + html + '</div>';
+    el.hidden = false; document.body.classList.add('noscroll');
+    if (onMount) onMount(el);
+    var f = el.querySelector('input:not([type=radio]):not([type=checkbox]),select,textarea'); if (f) f.focus();
+  }
+  function closeModal() { var el = $('#modal'); el.hidden = true; el.innerHTML = ''; document.body.classList.remove('noscroll'); }
+  function armDelete(btn, run) {
+    btn.addEventListener('click', function () {
+      if (!btn.classList.contains('armed')) { btn.classList.add('armed'); btn.textContent = 'Точно удалить?'; setTimeout(function () { btn.classList.remove('armed'); btn.textContent = 'Удалить'; }, 4000); return; }
+      run();
+    });
+  }
+  function defaultDate() { var t = todayStr(); return t.indexOf(S.month) === 0 ? t : S.month + '-01'; }
+  function setErr(el, msg) { var e = el.querySelector('.errmsg'); if (e) e.textContent = msg || ''; }
+
+  function openSession(id) {
+    var ex = id ? S.sessions[id] : null;
+    var cl = clientList().filter(function (c) { return c.status !== 'Ушёл' || (ex && ex.clientId === c.id); });
+    if (!cl.length) { toast('Сначала добавьте клиента'); S.tab = 'clients'; render(); return; }
+    var firstClient = ex ? ex.clientId : (S.fClient && S.clients[S.fClient] ? S.fClient : cl[0].id);
+    var d = ex || { date: defaultDate(), clientId: firstClient, type: S.clients[firstClient].direction === 'Мат' ? 'Мат' : 'Реформер', price: null, paid: false, paidDate: '', note: '' };
+    var html = '<h2>' + (ex ? 'Занятие' : 'Новое занятие') + '</h2><form class="form" id="f" novalidate>' +
+      '<div class="two"><label>Дата<input type="date" name="date" value="' + esc(d.date) + '" required></label>' +
+      '<label>Тип<select name="type">' + TYPES.map(function (t) { return '<option' + (t === d.type ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></label></div>' +
+      '<label>Клиент<select name="clientId">' + cl.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === d.clientId ? ' selected' : '') + '>' + esc(c.name) + ' (' + esc(c.currency) + ')</option>'; }).join('') + '</select></label>' +
+      '<div class="pricebox" id="pricebox"></div>' +
+      '<label>Другая цена, если не по карточке <span class="hint">скидка, пробное, разовая цена</span><span class="withunit"><input type="number" name="price" min="0" step="any" inputmode="decimal" value="' + (d.price != null && d.price !== '' ? esc(d.price) : '') + '"><span id="unit"></span></span></label>' +
+      '<label class="check"><input type="checkbox" name="paid"' + (d.paid ? ' checked' : '') + '> Оплачено</label>' +
+      '<label id="pdwrap">Дата оплаты<input type="date" name="paidDate" value="' + esc(d.paidDate || '') + '"></label>' +
+      '<label>Заметка<input type="text" name="note" value="' + esc(d.note || '') + '"></label><div class="errmsg" role="alert"></div>' +
+      '<div class="actions">' + (ex ? '<button type="button" class="btn danger left" id="del">Удалить</button>' : '') + '<button type="button" class="btn" data-act="close">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></form>';
+    openModal(html, function (el) {
+      var f = el.querySelector('#f');
+      function upd() {
+        var c = S.clients[f.clientId.value], t = f.type.value;
+        var base = c ? (t === 'Мат' ? c.priceM : c.priceR) : null;
+        el.querySelector('#unit').textContent = c ? c.currency : '';
+        el.querySelector('#pricebox').innerHTML = base ? 'Цена по карточке клиента: <b>' + money(base, c.currency) + '</b>' : '<span class="warn">В карточке клиента нет цены за ' + (t === 'Мат' ? 'мат' : 'реформер') + '. Укажите цену ниже.</span>';
+        el.querySelector('#pdwrap').hidden = !f.paid.checked;
+      }
+      f.clientId.addEventListener('change', function () { var c = S.clients[f.clientId.value]; if (c && !ex) f.type.value = c.direction === 'Мат' ? 'Мат' : 'Реформер'; upd(); });
+      f.type.addEventListener('change', upd);
+      f.paid.addEventListener('change', function () { if (f.paid.checked && !f.paidDate.value) f.paidDate.value = f.date.value; upd(); });
+      upd();
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var c = S.clients[f.clientId.value], t = f.type.value, over = num(f.price.value);
+        var base = c ? (t === 'Мат' ? c.priceM : c.priceR) : null;
+        if (!f.date.value) return setErr(el, 'Укажите дату.');
+        if (!c) return setErr(el, 'Выберите клиента.');
+        if (over == null && !base) return setErr(el, 'Укажите цену: в карточке клиента её нет.');
+        var data = { date: f.date.value, clientId: c.id || f.clientId.value, type: t, price: over, paid: f.paid.checked, paidDate: f.paid.checked ? (f.paidDate.value || f.date.value) : '', note: f.note.value.trim() };
+        put('sessions', id || newId('s'), data).then(function (ok) { if (ok) closeModal(); });
+      });
+      if (ex) armDelete(el.querySelector('#del'), function () { del('sessions', id).then(function (ok) { if (ok) closeModal(); }); });
+    });
+  }
+
+  function openClient(id) {
+    var ex = id ? S.clients[id] : null;
+    var d = ex || { name: '', contact: '', direction: 'Оба', currency: '₸', priceR: null, priceM: null, status: 'Активный', start: todayStr(), notes: '' };
+    var used = id ? sessionList().filter(function (s) { return s.clientId === id; }).length : 0;
+    var html = '<h2>' + (ex ? 'Карточка клиента' : 'Новый клиент') + '</h2><form class="form" id="f" novalidate>' +
+      '<label>Имя<input type="text" name="name" value="' + esc(d.name) + '" required></label>' +
+      '<label>Контакт <span class="hint">Telegram или WhatsApp</span><input type="text" name="contact" value="' + esc(d.contact) + '"></label>' +
+      '<div class="two"><label>Направление<select name="direction">' + DIRS.map(function (x) { return '<option' + (x === d.direction ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label>' +
+      '<label>Статус<select name="status">' + STATUSES.map(function (x) { return '<option' + (x === d.status ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label></div>' +
+      '<div><div style="font-weight:500;font-size:13px;margin-bottom:4px">Валюта клиента</div><div class="seg cur">' + CUR.map(function (c) { return '<label><input type="radio" name="currency" value="' + c + '"' + (c === d.currency ? ' checked' : '') + '><span title="' + CURNAME[c] + '">' + c + '</span></label>'; }).join('') + '</div>' +
+      (used ? '<div class="hint" style="margin-top:4px">Если сменить валюту, все прошлые занятия клиента тоже покажутся в новой валюте.</div>' : '') + '</div>' +
+      '<div class="two"><label>Цена: реформер<span class="withunit"><input type="number" name="priceR" min="0" step="any" inputmode="decimal" value="' + (d.priceR != null ? esc(d.priceR) : '') + '"><span class="u"></span></span></label>' +
+      '<label>Цена: мат<span class="withunit"><input type="number" name="priceM" min="0" step="any" inputmode="decimal" value="' + (d.priceM != null ? esc(d.priceM) : '') + '"><span class="u"></span></span></label></div>' +
+      '<label>Дата начала<input type="date" name="start" value="' + esc(d.start || '') + '"></label>' +
+      '<label>Заметки<input type="text" name="notes" value="' + esc(d.notes || '') + '"></label><div class="errmsg" role="alert"></div>' +
+      '<div class="actions">' + (ex ? '<button type="button" class="btn danger left" id="del">Удалить</button>' : '') + '<button type="button" class="btn" data-act="close">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></form>';
+    openModal(html, function (el) {
+      var f = el.querySelector('#f');
+      function unit() { var c = f.currency.value; Array.prototype.forEach.call(el.querySelectorAll('.u'), function (u) { u.textContent = c; }); }
+      Array.prototype.forEach.call(f.querySelectorAll('input[name=currency]'), function (r) { r.addEventListener('change', unit); }); unit();
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = f.name.value.trim(); if (!name) return setErr(el, 'Укажите имя.');
+        var dup = clientList().some(function (c) { return c.id !== id && c.name.toLowerCase() === name.toLowerCase(); });
+        if (dup) return setErr(el, 'Клиент с таким именем уже есть.');
+        var pr = num(f.priceR.value), pm = num(f.priceM.value), dir = f.direction.value;
+        if (!pr && !pm) return setErr(el, 'Укажите хотя бы одну цену.');
+        var data = { name: name, contact: f.contact.value.trim(), direction: dir, currency: f.currency.value, priceR: pr, priceM: pm, status: f.status.value, start: f.start.value, notes: f.notes.value.trim() };
+        put('clients', id || newId('c'), data).then(function (ok) { if (ok) closeModal(); });
+      });
+      if (ex) armDelete(el.querySelector('#del'), function () {
+        if (used) { setErr(el, 'У клиента есть занятия в журнале. Чтобы убрать его из списка, поставьте статус «Ушёл».'); return; }
+        del('clients', id).then(function (ok) { if (ok) closeModal(); });
+      });
+    });
+  }
+
+  function openStudio(id) {
+    var ex = id ? S.studio[id] : null;
+    if (!S.studios.length) { toast('Сначала задайте условия оплаты студии ниже'); S.tab = 'studio'; render(); return; }
+    var d = ex || { date: defaultDate(), studio: S.studios[0].name, type: 'Реформер', n: 4, adjust: 0, paid: false, note: '' };
+    var names = S.studios.map(function (s) { return s.name; }); if (names.indexOf(d.studio) < 0) names.push(d.studio);
+    var html = '<h2>' + (ex ? 'Занятие в студии' : 'Новое занятие в студии') + '</h2><form class="form" id="f" novalidate>' +
+      '<div class="two"><label>Дата<input type="date" name="date" value="' + esc(d.date) + '" required></label>' +
+      '<label>Тип<select name="type">' + TYPES.map(function (t) { return '<option' + (t === d.type ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></label></div>' +
+      '<label>Студия<select name="studio">' + names.map(function (n) { return '<option' + (n === d.studio ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') + '</select></label>' +
+      '<div><div style="font-weight:500;font-size:13px;margin-bottom:4px">Участников</div><div class="seg">' + [1, 2, 3, 4, 5, 6].map(function (n) { return '<label><input type="radio" name="n" value="' + n + '"' + (n === Number(d.n) ? ' checked' : '') + '><span>' + n + '</span></label>'; }).join('') + '</div></div>' +
+      '<div class="pricebox" id="pricebox"></div>' +
+      '<label>Корректировка, ₸ <span class="hint">премия или вычет, необязательно</span><input type="number" name="adjust" step="any" inputmode="decimal" value="' + (d.adjust ? esc(d.adjust) : '') + '"></label>' +
+      '<label class="check"><input type="checkbox" name="paid"' + (d.paid ? ' checked' : '') + '> Студия выплатила</label>' +
+      '<label>Заметка<input type="text" name="note" value="' + esc(d.note || '') + '"></label><div class="errmsg" role="alert"></div>' +
+      '<div class="actions">' + (ex ? '<button type="button" class="btn danger left" id="del">Удалить</button>' : '') + '<button type="button" class="btn" data-act="close">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></form>';
+    openModal(html, function (el) {
+      var f = el.querySelector('#f');
+      function nVal() { var r = f.querySelector('input[name=n]:checked'); return r ? Number(r.value) : 0; }
+      function upd() {
+        var r = rateFor(f.studio.value, nVal()), a = num(f.adjust.value) || 0;
+        el.querySelector('#pricebox').innerHTML = 'Ставка по условиям: <b>' + money(r, '₸') + '</b> · итого: <b>' + money(r + a, '₸') + '</b>';
+      }
+      f.studio.addEventListener('change', upd); f.adjust.addEventListener('input', upd);
+      Array.prototype.forEach.call(f.querySelectorAll('input[name=n]'), function (r) { r.addEventListener('change', upd); }); upd();
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!f.date.value) return setErr(el, 'Укажите дату.');
+        if (!nVal()) return setErr(el, 'Выберите число участников.');
+        var data = { date: f.date.value, studio: f.studio.value, type: f.type.value, n: nVal(), rate: rateFor(f.studio.value, nVal()), adjust: num(f.adjust.value) || 0, paid: f.paid.checked, note: f.note.value.trim() };
+        put('studio', id || newId('t'), data).then(function (ok) { if (ok) closeModal(); });
+      });
+      if (ex) armDelete(el.querySelector('#del'), function () { del('studio', id).then(function (ok) { if (ok) closeModal(); }); });
+    });
+  }
+
+  /* ---------- действия ---------- */
+  function clearDemo() {
+    var jobs = [];
+    var demoClients = {};
+    Object.keys(S.clients).forEach(function (k) { if (S.clients[k] && S.clients[k].demo) demoClients[k] = 1; });
+    ['clients', 'sessions', 'studio'].forEach(function (c) {
+      Object.keys(S[c]).forEach(function (k) {
+        var d = S[c][k];
+        if (d && (d.demo || (c === 'sessions' && demoClients[d.clientId]))) jobs.push([c, k]);
+      });
+    });
+    var i = 0;
+    (function next() {
+      if (i >= jobs.length) { toast('Примеры удалены'); return; }
+      var j = jobs[i++]; del(j[0], j[1]).then(function (ok) { if (ok) next(); });
+    })();
+  }
+  function shiftMonth(d) { var a = S.month.split('-').map(Number), t = a[0] * 12 + a[1] - 1 + d; S.month = Math.floor(t / 12) + '-' + p2(t % 12 + 1); }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest ? e.target.closest('[data-act]') : null;
+    if (e.target.id === 'modal') { closeModal(); return; }
+    if (!t) return;
+    var act = t.getAttribute('data-act'), id = t.getAttribute('data-id');
+    switch (act) {
+      case 'tab': S.tab = id; try { localStorage.setItem('uchet-pilatesa-tab', id); } catch (x) { } render(); break;
+      case 'mprev': shiftMonth(-1); render(); break;
+      case 'mnext': shiftMonth(1); render(); break;
+      case 'yprev': S.year--; render(); break;
+      case 'ynext': S.year++; render(); break;
+      case 'openmonth': S.month = id; S.tab = 'summary'; render(); break;
+      case 'fstatus': S.fStatus = id; render(); break;
+      case 'gounpaid': S.tab = 'journal'; S.onlyUnpaid = true; S.fClient = ''; render(); break;
+      case 'addsession': openSession(); break;
+      case 'editsession': openSession(id); break;
+      case 'addclient': openClient(); break;
+      case 'editclient': openClient(id); break;
+      case 'addstudio': openStudio(); break;
+      case 'editstudio': openStudio(id); break;
+      case 'export': exportXlsx(); break;
+      case 'import': $('#impfile').click(); break;
+      case 'hidebackup': S.hideBackup = true; render(); break;
+      case 'seed': seedDemo(); break;
+      case 'startclient': S.tab = 'clients'; render(); openClient(); break;
+      case 'wipe': openWipe(); break;
+      case 'close': closeModal(); break;
+      case 'cleardemo': clearDemo(); break;
+      case 'togglepaid': case 'togglestudio':
+        (function () {
+          var coll = act === 'togglepaid' ? 'sessions' : 'studio', cur = S[coll][id]; if (!cur || busy[id]) return;
+          busy[id] = 1;
+          var nx = Object.assign({}, cur, { paid: !cur.paid });
+          if (coll === 'sessions') nx.paidDate = nx.paid ? todayStr() : '';
+          put(coll, id, nx).then(function () { busy[id] = 0; });
+        })(); break;
+      case 'addrate': S.rd = (S.rd || []).concat([{ name: '', base: 5500, step: 1000, cap: 4 }]); render(); break;
+      case 'delrate': S.rd.splice(Number(id), 1); render(); break;
+      case 'saverates':
+        (function () {
+          var list = (S.rd || []).map(function (r) { return { name: String(r.name || '').trim(), base: Number(r.base) || 0, step: Number(r.step) || 0, cap: Math.max(1, Math.min(6, Number(r.cap) || 1)) }; }).filter(function (r) { return r.name; });
+          var names = list.map(function (r) { return r.name; });
+          if (names.some(function (n, i) { return names.indexOf(n) !== i; })) { toast('Названия студий не должны повторяться', 'bad'); return; }
+          putStudios(list).then(function (ok) { if (ok) { S.rd = null; toast('Условия сохранены'); sched(); } });
+        })(); break;
+    }
+  });
+  document.addEventListener('change', function (e) {
+    var b = e.target.getAttribute && e.target.getAttribute('data-bind'); if (!b) return;
+    var v = e.target.value;
+    if (b === 'month') { S.month = S.month.slice(0, 4) + '-' + p2(+v); }
+    else if (b === 'year') { S.month = v + '-' + S.month.slice(5); }
+    else if (b === 'yearonly') { S.year = +v; }
+    else if (b === 'fclient') { S.fClient = v; }
+    else if (b === 'unpaid') { S.onlyUnpaid = e.target.checked; }
+    render();
+  });
+  document.addEventListener('input', function (e) {
+    var r = e.target.getAttribute && e.target.getAttribute('data-rate'); if (!r || !S.rd) return;
+    var p = r.split(':'), row = S.rd[+p[0]]; if (!row) return;
+    row[p[1]] = p[1] === 'name' ? e.target.value : e.target.value;
+    var box = e.target.closest('.rate'); if (box) { var sc = box.querySelector('.scale'); if (sc) sc.outerHTML = scaleHTML(row); }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(); });
+
+  // подсказка над столбцами графика
+  function showTip(e) {
+    var hit = e.target.closest ? e.target.closest('.hit') : null, tip = $('#tip'); if (!tip) return;
+    if (!hit) { tip.hidden = true; return; }
+    var P = chartData[+hit.getAttribute('data-p')], d = P.data[+hit.getAttribute('data-i')], box = $('#chartbox').getBoundingClientRect();
+    tip.innerHTML = '<b>' + d.label + ' · ' + P.title + '</b>' + d.parts.map(function (q) { return '<div><span>' + q.name + '</span><span>' + money(q.v, q.cur) + '</span></div>'; }).join('') +
+      (d.parts.length > 1 ? '<div><span>Всего</span><span>' + money(d.parts.reduce(function (t, q) { return t + q.v; }, 0), d.parts[0].cur) + '</span></div>' : '');
+    tip.hidden = false;
+    var x = e.clientX - box.left + 14, y = e.clientY - box.top + 14;
+    if (x + tip.offsetWidth > box.width - 8) x = e.clientX - box.left - tip.offsetWidth - 14;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+  }
+  document.addEventListener('pointermove', showTip);
+  document.addEventListener('pointerdown', showTip);
+  document.addEventListener('pointerleave', function () { var tip = $('#tip'); if (tip) tip.hidden = true; });
+
+  /* ---------- копия данных: Excel (.xlsx) без сторонних библиотек ---------- */
+  var XNS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  var CRC_T = (function () { var t = [], c, n, k; for (n = 0; n < 256; n++) { c = n; for (k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { var c = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function w16(v) { return [v & 255, (v >>> 8) & 255]; }
+  function w32(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; }
+  function zipStore(files) {
+    var enc = new TextEncoder(), chunks = [], central = [], offset = 0;
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data), sz = data.length;
+      var lh = [].concat(w32(0x04034b50), w16(20), w16(0x0800), w16(0), w16(0), w16(0x21), w32(crc), w32(sz), w32(sz), w16(name.length), w16(0));
+      chunks.push(new Uint8Array(lh), name, data);
+      central.push(new Uint8Array([].concat(w32(0x02014b50), w16(20), w16(20), w16(0x0800), w16(0), w16(0), w16(0x21), w32(crc), w32(sz), w32(sz), w16(name.length), w16(0), w16(0), w16(0), w16(0), w32(0), w32(offset))), name);
+      offset += lh.length + name.length + sz;
+    });
+    var csize = 0; central.forEach(function (a) { csize += a.length; });
+    var end = new Uint8Array([].concat(w32(0x06054b50), w16(0), w16(0), w16(files.length), w16(files.length), w32(csize), w32(offset), w16(0)));
+    return new Blob(chunks.concat(central, [end]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  function xmlEsc(s) { return String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function colName(i) { var s = ''; i++; while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+  function sheetXML(rows, widths) {
+    var x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="' + XNS + '"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>';
+    widths.forEach(function (w, i) { x += '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; });
+    x += '</cols><sheetData>';
+    rows.forEach(function (r, ri) {
+      x += '<row r="' + (ri + 1) + '">';
+      r.forEach(function (v, ci) {
+        if (v == null || v === '') return;
+        var ref = colName(ci) + (ri + 1);
+        if (typeof v === 'string') x += '<c r="' + ref + '" t="inlineStr"' + (ri === 0 ? ' s="1"' : '') + '><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>';
+        else if (typeof v === 'number') x += '<c r="' + ref + '"><v>' + v + '</v></c>';
+        else if (v.d) x += '<c r="' + ref + '" s="2"><v>' + (dayNum(v.d) + 25569) + '</v></c>';
+        else if (v.n != null) x += '<c r="' + ref + '" s="' + v.s + '"><v>' + v.n + '</v></c>';
+      });
+      x += '</row>';
+    });
+    return x + '</sheetData></worksheet>';
+  }
+  var STYLES_XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="' + XNS + '">' +
+    '<numFmts count="4"><numFmt numFmtId="164" formatCode="DD.MM.YYYY"/><numFmt numFmtId="165" formatCode="#,##0&quot; ₸&quot;"/><numFmt numFmtId="166" formatCode="#,##0&quot; ₽&quot;"/><numFmt numFmtId="167" formatCode="&quot;$&quot;#,##0.00"/></numFmts>' +
+    '<fonts count="2"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font></fonts>' +
+    '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+    '<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="167" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+  function buildWorkbook() {
+    var cs = clientList(), idx = {}; cs.forEach(function (c) { idx[c.id] = c; });
+    var cStyle = { '₸': 3, '₽': 4, '$': 5 };
+    var m = function (v, cur) { return v == null || v === '' ? null : { n: Number(v), s: cStyle[cur] || 3 }; };
+    var s1 = [['Имя', 'Контакт', 'Направление', 'Валюта', 'Цена: реформер', 'Цена: мат', 'Статус', 'Дата начала', 'Заметки']];
+    cs.forEach(function (c) { s1.push([c.name, c.contact || '', c.direction, c.currency, m(c.priceR, c.currency), m(c.priceM, c.currency), c.status, c.start ? { d: c.start } : null, c.notes || '']); });
+    var s2 = [['Дата', 'Клиент', 'Тип', 'Цена', 'Валюта', 'Оплачено', 'Дата оплаты', 'Заметка']];
+    sessionList().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).forEach(function (s) {
+      var c = idx[s.clientId];
+      s2.push([{ d: s.date }, c ? c.name : '', s.type, m(priceOf(s), c ? c.currency : ''), c ? c.currency : '', s.paid ? 'Да' : 'Нет', s.paidDate ? { d: s.paidDate } : null, s.note || '']);
+    });
+    var s3 = [['Дата', 'Студия', 'Тип', 'Участников', 'Ставка', 'Корректировка', 'Итого', 'Выплачено', 'Заметка']];
+    studioList().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).forEach(function (t) {
+      s3.push([{ d: t.date }, t.studio, t.type, Number(t.n) || 0, m(t.rate, '₸'), m(t.adjust || 0, '₸'), m(studioTotal(t), '₸'), t.paid ? 'Да' : 'Нет', t.note || '']);
+    });
+    var s4 = [['Студия', 'За 1 участника', 'Плюс за каждого следующего', 'Растёт до, чел.']];
+    S.studios.forEach(function (r) { s4.push([r.name, m(r.base, '₸'), m(r.step, '₸'), Number(r.cap) || 1]); });
+    var months = {};
+    sessionList().forEach(function (s) { months[s.date.slice(0, 7)] = 1; });
+    studioList().forEach(function (t) { months[t.date.slice(0, 7)] = 1; });
+    var s5 = [['Месяц', 'Занятий', 'Начислено ₸', 'Начислено ₽', 'Начислено $', 'Не оплачено ₸', 'Не оплачено ₽', 'Не оплачено $', 'Студия ₸', '₸: клиенты + студия']];
+    Object.keys(months).sort().forEach(function (k) {
+      var ms = sessionList().filter(function (s) { return s.date.indexOf(k) === 0; }), agg = aggregate(ms), unpaid = aggregate(ms.filter(function (s) { return !s.paid; }));
+      var st = sum(studioList().filter(function (t) { return t.date.indexOf(k) === 0; }), studioTotal);
+      s5.push([MONTHS[+k.slice(5) - 1] + ' ' + k.slice(0, 4), ms.length, m(agg['₸'].sum, '₸'), m(agg['₽'].sum, '₽'), m(agg['$'].sum, '$'), m(unpaid['₸'].sum, '₸'), m(unpaid['₽'].sum, '₽'), m(unpaid['$'].sum, '$'), m(st, '₸'), m(agg['₸'].sum + st, '₸')]);
+    });
+    var sheets = [['Клиенты', s1, [18, 24, 14, 9, 15, 12, 12, 13, 28]], ['Журнал', s2, [13, 18, 12, 13, 9, 11, 13, 28]], ['Студия', s3, [13, 20, 12, 12, 13, 14, 14, 12, 28]],
+      ['Условия студий', s4, [22, 18, 26, 16]], ['По месяцам (справка)', s5, [20, 10, 15, 15, 15, 15, 15, 15, 15, 22]]];
+    var files = [];
+    files.push({ name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      sheets.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' });
+    files.push({ name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' });
+    files.push({ name: 'xl/workbook.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="' + XNS + '" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+      sheets.map(function (s, i) { return '<sheet name="' + xmlEsc(s[0]) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets></workbook>' });
+    files.push({ name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      sheets.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
+      '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' });
+    files.push({ name: 'xl/styles.xml', text: STYLES_XML });
+    sheets.forEach(function (s, i) { files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', text: sheetXML(s[1], s[2]) }); });
+    return zipStore(files);
+  }
+
+  function isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function downloadBlob(blob, name) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  }
+  function markBackup() { lastBackup = todayStr(); try { localStorage.setItem('uchet-pilatesa-backup', lastBackup); } catch (e) { } sched(); }
+  function exportXlsx() {
+    var blob = buildWorkbook(), name = 'uchet-pilatesa-' + todayStr() + '.xlsx', file = null;
+    try { file = new File([blob], name, { type: blob.type }); } catch (e) { }
+    if (isIOS() && file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Учёт пилатеса' }).then(markBackup, function (e) { if (e && e.name === 'AbortError') return; downloadBlob(blob, name); markBackup(); });
+      return;
+    }
+    downloadBlob(blob, name); markBackup(); toast('Копия сохранена: ' + name);
+  }
+
+  function rdU16(b, o) { return b[o] | (b[o + 1] << 8); }
+  function rdU32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
+  function inflateRaw(u8) {
+    if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('nodecomp'));
+    var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(u8); w.close();
+    return new Response(ds.readable).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+  }
+  function unzip(buf) {
+    var b = new Uint8Array(buf), dec = new TextDecoder(), i = b.length - 22;
+    while (i >= 0 && rdU32(b, i) !== 0x06054b50) i--;
+    if (i < 0) return Promise.reject(new Error('nozip'));
+    var n = rdU16(b, i + 10), off = rdU32(b, i + 16), jobs = [], files = {};
+    for (var k = 0; k < n; k++) {
+      if (rdU32(b, off) !== 0x02014b50) return Promise.reject(new Error('badzip'));
+      var method = rdU16(b, off + 10), csize = rdU32(b, off + 20), nlen = rdU16(b, off + 28), elen = rdU16(b, off + 30), clen = rdU16(b, off + 32), lho = rdU32(b, off + 42);
+      var name = dec.decode(b.subarray(off + 46, off + 46 + nlen));
+      off += 46 + nlen + elen + clen;
+      var ds = lho + 30 + rdU16(b, lho + 26) + rdU16(b, lho + 28), raw = b.subarray(ds, ds + csize);
+      if (!/^xl\/(workbook\.xml|_rels\/workbook\.xml\.rels|sharedStrings\.xml|worksheets\/[^\/]+\.xml)$/.test(name)) continue;
+      (function (name, method, raw) {
+        jobs.push((method === 0 ? Promise.resolve(raw) : method === 8 ? inflateRaw(raw) : Promise.reject(new Error('method'))).then(function (d) { files[name] = d; }));
+      })(name, method, raw);
+    }
+    return Promise.all(jobs).then(function () { return files; });
+  }
+  function xmlDoc(u8) { return new DOMParser().parseFromString(new TextDecoder().decode(u8), 'application/xml'); }
+  function els(node, name) { return Array.prototype.slice.call(node.getElementsByTagNameNS('*', name)); }
+  function cellPos(ref) { var m = /^([A-Z]+)(\d+)$/.exec(ref || ''); if (!m) return [0, 0]; var n = 0; for (var i = 0; i < m[1].length; i++) n = n * 26 + m[1].charCodeAt(i) - 64; return [n - 1, +m[2] - 1]; }
+  function readBook(files) {
+    var RNS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    if (!files['xl/workbook.xml']) throw new Error('nobook');
+    var wbx = xmlDoc(files['xl/workbook.xml']), rels = {}, shared = [], out = {};
+    if (files['xl/_rels/workbook.xml.rels']) els(xmlDoc(files['xl/_rels/workbook.xml.rels']), 'Relationship').forEach(function (r) { rels[r.getAttribute('Id')] = r.getAttribute('Target'); });
+    if (files['xl/sharedStrings.xml']) els(xmlDoc(files['xl/sharedStrings.xml']), 'si').forEach(function (si) {
+      var t = ''; els(si, 't').forEach(function (x) { if (!x.parentNode || x.parentNode.localName !== 'rPh') t += x.textContent; }); shared.push(t);
+    });
+    els(wbx, 'sheet').forEach(function (sh) {
+      var rid = sh.getAttributeNS(RNS, 'id') || sh.getAttribute('r:id'), target = rels[rid]; if (!target) return;
+      var data = files[target.charAt(0) === '/' ? target.slice(1) : 'xl/' + target]; if (!data) return;
+      var rows = [];
+      els(xmlDoc(data), 'c').forEach(function (c) {
+        var pos = cellPos(c.getAttribute('r')), t = c.getAttribute('t'), v = null, vn = els(c, 'v')[0];
+        if (t === 'inlineStr') { v = ''; els(c, 't').forEach(function (x) { v += x.textContent; }); }
+        else if (vn) {
+          var raw = vn.textContent;
+          if (t === 's') v = shared[+raw] == null ? '' : shared[+raw];
+          else if (t === 'str' || t === 'e') v = raw;
+          else if (t === 'b') v = raw === '1';
+          else { v = raw === '' ? null : Number(raw); if (v !== null && isNaN(v)) v = raw; }
+        }
+        if (v === null) return;
+        (rows[pos[1]] = rows[pos[1]] || [])[pos[0]] = v;
+      });
+      out[sh.getAttribute('name')] = rows;
+    });
+    return out;
+  }
+
+  function nh(s) { return String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/[.,:()]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function colMap(row) { var m = {}; (row || []).forEach(function (h, i) { var k = nh(h); if (k && m[k] == null) m[k] = i; }); return m; }
+  function vText(v) { if (v == null) return ''; if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(v); return String(v).trim(); }
+  function vNum(v) { if (v == null || v === '') return null; if (typeof v === 'number') return v; var n = Number(String(v).replace(/\s/g, '').replace(',', '.')); return isNaN(n) ? null : n; }
+  function vDate(v) {
+    if (v == null || v === '') return '';
+    if (typeof v === 'number') { var d = new Date((Math.round(v) - 25569) * 86400000); return d.getUTCFullYear() + '-' + p2(d.getUTCMonth() + 1) + '-' + p2(d.getUTCDate()); }
+    var s = String(v).trim(), a = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/.exec(s);
+    if (a) return a[3] + '-' + p2(+a[2]) + '-' + p2(+a[1]);
+    a = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+    return a ? a[1] + '-' + p2(+a[2]) + '-' + p2(+a[3]) : '';
+  }
+  function vBool(v) { if (typeof v === 'boolean') return v; var s = String(v == null ? '' : v).trim().toLowerCase(); return s === 'да' || s === 'yes' || s === 'true' || s === '1'; }
+  function vCur(v) {
+    var s = String(v == null ? '' : v).trim().toLowerCase();
+    if (s === '₸' || s === 'тенге' || s === 'kzt' || s === 'тг') return '₸';
+    if (s === '₽' || s === 'рубли' || s === 'руб' || s === 'rub' || s === 'р') return '₽';
+    if (s === '$' || s === 'доллары' || s === 'usd' || s === 'долл') return '$';
+    return '';
+  }
+  function vOne(v, list, dflt) { var s = String(v == null ? '' : v).trim().toLowerCase(); for (var i = 0; i < list.length; i++) if (list[i].toLowerCase() === s) return list[i]; return dflt; }
+
+  function parseBackup(book) {
+    var sc = book['Клиенты'], sj = book['Журнал'];
+    if (!sc || !sj) throw new Error('nosheets');
+    var out = { clients: {}, sessions: {}, studio: {}, studios: [], skipped: 0, stamp: Date.now().toString(36) }, byName = {}, n = 0;
+    var cm = colMap(sc[0]);
+    if (cm['имя'] == null) throw new Error('nosheets');
+    for (var r = 1; r < sc.length; r++) {
+      var row = sc[r] || [], name = vText(row[cm['имя']]); if (!name) continue;
+      if (byName[name.toLowerCase()]) { out.skipped++; continue; }
+      var id = 'i' + out.stamp + (n++);
+      out.clients[id] = { name: name, contact: vText(row[cm['контакт']]), direction: vOne(row[cm['направление']], DIRS, 'Оба'), currency: vCur(row[cm['валюта']]) || '₸',
+        priceR: vNum(row[cm['цена реформер']]), priceM: vNum(row[cm['цена мат']]), status: vOne(row[cm['статус']], STATUSES, 'Активный'), start: vDate(row[cm['дата начала']]), notes: vText(row[cm['заметки']]) };
+      byName[name.toLowerCase()] = id;
+    }
+    var jm = colMap(sj[0]);
+    for (r = 1; r < sj.length; r++) {
+      row = sj[r] || [];
+      var date = vDate(row[jm['дата']]), cid = byName[vText(row[jm['клиент']]).toLowerCase()], type = vOne(row[jm['тип']], TYPES, '');
+      if (!date && !vText(row[jm['клиент']])) continue;
+      if (!date || !cid || !type) { out.skipped++; continue; }
+      var cl = out.clients[cid], card = type === 'Мат' ? cl.priceM : cl.priceR, price = vNum(row[jm['цена']]);
+      var over = (price != null && (card == null || Math.abs(price - card) > 1e-9)) ? price : null;
+      var paid = vBool(row[jm['оплачено']]);
+      out.sessions['j' + out.stamp + (n++)] = { date: date, clientId: cid, type: type, price: over, paid: paid, paidDate: paid ? (vDate(row[jm['дата оплаты']]) || date) : '', note: vText(row[jm['заметка']]) };
+    }
+    var rm = colMap((book['Условия студий'] || [])[0]), rr = book['Условия студий'] || [];
+    for (r = 1; r < rr.length; r++) {
+      row = rr[r] || []; var sn = vText(row[rm['студия']]); if (!sn) continue;
+      out.studios.push({ name: sn, base: vNum(row[rm['за 1 участника']]) || 0, step: vNum(row[rm['плюс за каждого следующего']]) || 0, cap: Math.max(1, Math.min(6, Math.round(vNum(row[rm['растет до чел']]) || 4))) });
+    }
+    var tt = book['Студия'] || [], tm = colMap(tt[0]);
+    for (r = 1; r < tt.length; r++) {
+      row = tt[r] || [];
+      var td = vDate(row[tm['дата']]), tn = Math.round(vNum(row[tm['участников']]) || 0), tname = vText(row[tm['студия']]), ttype = vOne(row[tm['тип']], TYPES, '');
+      if (!td && !tname) continue;
+      if (!td || !tname || !ttype || tn < 1 || tn > 6) { out.skipped++; continue; }
+      var rate = vNum(row[tm['ставка']]);
+      if (rate == null) { var cfg = out.studios.filter(function (z) { return z.name === tname; })[0]; rate = cfg ? cfg.base + cfg.step * (Math.min(tn, cfg.cap) - 1) : 0; }
+      out.studio['t' + out.stamp + (n++)] = { date: td, studio: tname, type: ttype, n: tn, rate: rate, adjust: vNum(row[tm['корректировка']]) || 0, paid: vBool(row[tm['выплачено']]), note: vText(row[tm['заметка']]) };
+    }
+    return out;
+  }
+  function importFile(f) {
+    f.arrayBuffer().then(unzip).then(readBook).then(parseBackup).then(function (p) { confirmImport(p, f.name); }).catch(function (e) {
+      toast(e && e.message === 'nodecomp' ? 'Этот браузер не умеет читать такие файлы Excel. Обновите систему или загрузите файл, выгруженный из этого приложения.' : 'Не удалось прочитать файл. Нужен файл .xlsx, который выгрузило это приложение.', 'bad');
+    });
+  }
+  function confirmImport(p, fname) {
+    var cnt = function (o) { return Object.keys(o).length; };
+    var html = '<h2>Загрузить копию?</h2><p style="margin:0 0 8px">Файл «' + esc(fname) + '»: клиентов — <b>' + cnt(p.clients) + '</b>, занятий — <b>' + cnt(p.sessions) + '</b>, занятий в студии — <b>' + cnt(p.studio) + '</b>.</p>' +
+      '<p style="margin:0 0 8px">Сейчас в приложении: клиентов — ' + cnt(S.clients) + ', занятий — ' + cnt(S.sessions) + ', в студии — ' + cnt(S.studio) + '. Эти данные будут <b>заменены</b> данными из файла.</p>' +
+      (p.skipped ? '<p class="warn" style="margin:0 0 8px">Пропущено строк с ошибками: ' + p.skipped + ' (нет клиента, даты или типа занятия).</p>' : '') +
+      '<div class="actions"><button type="button" class="btn left" data-act="export">Сначала выгрузить текущие данные</button><button type="button" class="btn" data-act="close">Отмена</button><button type="button" class="btn primary" id="doimport">Заменить данные</button></div>';
+    openModal(html, function (el) {
+      el.querySelector('#doimport').addEventListener('click', function () {
+        S.clients = p.clients; S.sessions = p.sessions; S.studio = p.studio; if (p.studios.length || !S.studios.length) S.studios = p.studios; S.rd = null;
+        saveLocal(); closeModal(); render(); toast('Данные загружены из файла');
+      });
+    });
+  }
+
+  /* ---------- пробные данные, пустой старт, стирание ---------- */
+  function hasAnyData() { return Object.keys(S.clients).length || Object.keys(S.sessions).length || Object.keys(S.studio).length; }
+  function hasReal() { return ['clients', 'sessions', 'studio'].some(function (c) { return Object.keys(S[c]).some(function (k) { return !S[c][k].demo; }); }); }
+  function needBackup() { return hasReal() && (!lastBackup || dayNum(todayStr()) - dayNum(lastBackup) > 14); }
+  function ago(n) { var d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  function seedDemo() {
+    var cl = [['c1', 'Айгерим', '@aigerim', 'Оба', '₸', 8000, 5000, 'Ходит 2 раза в неделю'], ['c2', 'Мария', '+7 700 000 00 01', 'Реформер', '₸', 9000, null, ''],
+      ['c3', 'Динара', '@dinara', 'Мат', '₽', null, 1800, 'Нерегулярно'], ['c4', 'Елена', '@elena', 'Оба', '$', 15, 10, ''], ['c5', 'Асель', '@asel', 'Реформер', '₸', 8000, null, 'Давно не была']];
+    cl.forEach(function (x) { S.clients['demo-' + x[0]] = { name: x[1], contact: x[2], direction: x[3], currency: x[4], priceR: x[5], priceM: x[6], status: 'Активный', start: ago(45), notes: x[7], demo: true }; });
+    var se = [['c1', 'Реформер', 28, 1], ['c2', 'Реформер', 27, 1], ['c3', 'Мат', 26, 1], ['c4', 'Мат', 25, 1], ['c1', 'Мат', 21, 1], ['c2', 'Реформер', 20, 1], ['c4', 'Реформер', 18, 1], ['c5', 'Реформер', 17, 1],
+      ['c1', 'Реформер', 14, 1], ['c2', 'Реформер', 13, 1], ['c3', 'Мат', 11, 1], ['c1', 'Реформер', 8, 1], ['c2', 'Реформер', 7, 1], ['c3', 'Мат', 5, 0], ['c4', 'Мат', 4, 0], ['c1', 'Мат', 3, 1], ['c2', 'Реформер', 1, 0]];
+    se.forEach(function (x, i) { S.sessions['demo-s' + i] = { date: ago(x[2]), clientId: 'demo-' + x[0], type: x[1], price: null, paid: !!x[3], paidDate: x[3] ? ago(x[2]) : '', note: '', demo: true }; });
+    if (!S.studios.length) S.studios = [{ name: 'Моя студия', base: 5500, step: 1000, cap: 4 }];
+    var ts = [[15, 'Мат', 6, 1], [13, 'Реформер', 4, 1], [9, 'Реформер', 2, 1], [6, 'Мат', 5, 1], [3, 'Реформер', 1, 1], [1, 'Реформер', 3, 0]];
+    ts.forEach(function (x, i) { S.studio['demo-t' + i] = { date: ago(x[0]), studio: S.studios[0].name, type: x[1], n: x[2], rate: rateFor(S.studios[0].name, x[2]), adjust: 0, paid: !!x[3], note: '', demo: true }; });
+    S.month = todayStr().slice(0, 7); saveLocal(); render();
+  }
+  function welcomeHTML() {
+    return '<div class="empty" style="padding:44px 22px"><b style="font-size:22px">Здесь пока пусто</b>Начните с клиента: укажите его валюту и цену за занятие. Дальше занятия записываются в пару нажатий.' +
+      '<div class="actions" style="justify-content:center;margin-top:18px"><button class="btn primary" data-act="startclient">+ Добавить клиента</button><button class="btn" data-act="seed">Посмотреть на примерах</button><button class="btn" data-act="import">Загрузить копию из Excel</button></div></div>';
+  }
+  function viewBackup() {
+    var cnt = function (o) { return Object.keys(o).length; };
+    var last = lastBackup ? fmtDate(lastBackup) + ' (' + (dayNum(todayStr()) - dayNum(lastBackup)) + ' ' + plural(dayNum(todayStr()) - dayNum(lastBackup), ['день', 'дня', 'дней']) + ' назад)' : 'ещё не делали';
+    return '<div class="grid two">' +
+      '<section class="card"><div class="row"><h3>Сохранить копию</h3></div><p style="margin:0 0 12px">В файл Excel попадут клиенты, журнал занятий, занятия в студии и условия оплаты. Последняя копия: <b>' + last + '</b>.</p>' +
+      '<dl class="kv" style="margin-bottom:14px"><div><dt>Клиентов</dt><dd>' + cnt(S.clients) + '</dd></div><div><dt>Занятий</dt><dd>' + cnt(S.sessions) + '</dd></div><div><dt>Занятий в студии</dt><dd>' + cnt(S.studio) + '</dd></div></dl>' +
+      '<button class="btn primary" data-act="export">Выгрузить в Excel</button></section>' +
+      '<section class="card"><div class="row"><h3>Восстановить из копии</h3></div><p style="margin:0 0 14px">Выберите файл .xlsx, который выгрузило это приложение. Данные в приложении будут заменены данными из файла. Файл можно править в Excel, колонки менять не нужно.</p>' +
+      '<button class="btn" data-act="import">Загрузить из Excel</button></section></div>' +
+      '<div class="sec" style="margin-top:6px"><h2>Как хранятся данные</h2><div class="card"><p style="margin:0 0 10px">Записи лежат только на этом устройстве, в памяти браузера. В интернет они не отправляются и на другие устройства не попадают.</p>' +
+      '<p style="margin:0 0 10px"><b>Сохраняйте копию раз в одну-две недели</b> и не стирайте данные сайтов в настройках Safari: вместе с ними пропадут и записи.</p>' +
+      '<p style="margin:0">На iPhone откройте адрес приложения в Safari, нажмите «Поделиться» и «На экран “Домой”». Вводите данные уже в приложении с иконки: у иконки и у Safari память раздельная, записи из одной не видны в другой. Если вводили данные в Safari, выгрузите копию там и загрузите её в приложении с иконки.</p></div></div>' +
+      '<div class="sec"><h2>Стереть все данные</h2><div class="card"><p style="margin:0 0 12px">Удалит всех клиентов, занятия и условия студий на этом устройстве. Сначала сделайте копию.</p><button class="btn danger" data-act="wipe">Стереть всё…</button></div></div>';
+  }
+  function openWipe() {
+    openModal('<h2>Стереть все данные?</h2><p style="margin:0 0 8px">Будут удалены все клиенты, занятия и условия студий на этом устройстве. Это нельзя отменить, если нет копии в Excel.</p>' +
+      '<div class="actions"><button type="button" class="btn left" data-act="export">Сначала выгрузить копию</button><button type="button" class="btn" data-act="close">Отмена</button><button type="button" class="btn danger" id="dowipe">Стереть всё</button></div>', function (el) {
+      var b = el.querySelector('#dowipe');
+      b.addEventListener('click', function () {
+        if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'Точно стереть?'; return; }
+        S.clients = {}; S.sessions = {}; S.studio = {}; S.studios = []; S.rd = null; saveLocal(); closeModal(); S.tab = 'summary'; render(); toast('Все данные стёрты');
+      });
+    });
+  }
+
+  $('#impfile').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; if (f) importFile(f); });
+  if ('serviceWorker' in navigator) { window.addEventListener('load', function () { try { navigator.serviceWorker.register('sw.js').catch(function () { }); } catch (e) { } }); }
+
+  render();
+  initData();
+})();
+</script>
+</body>
+</html>
