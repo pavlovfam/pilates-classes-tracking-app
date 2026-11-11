@@ -1,5 +1,5 @@
 // Кэш для работы без интернета. При обновлении приложения поменяйте номер версии.
-const V = 'pilates-v2';
+const V = 'pilates-v3';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
