@@ -239,6 +239,14 @@ html { -webkit-text-size-adjust: 100%; }
 button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 @media (max-width: 700px) { input, select, textarea { font-size: 16px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.taxbox { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; }
+.taxbox label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+.taxbox input { width: 84px; }
+.taxbox .muted { flex: 1 1 220px; min-width: 0; font-size: 13px; }
+.taxbox b { min-width: 110px; text-align: center; }
+table.tight { min-width: 0; }
+table.tight th:first-child { white-space: normal; }
+table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
 </style>
 </head>
 <body><div class="app">
@@ -270,7 +278,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
   var TYPES = ['Реформер', 'Мат'];
   var DIRS = ['Реформер', 'Мат', 'Оба'];
   var STATUSES = ['Активный', 'Пауза', 'Ушёл'];
-  var TABS = [['summary', 'Сводка'], ['journal', 'Журнал'], ['clients', 'Клиенты'], ['groups', 'Мини-группы'], ['studio', 'Студия'], ['online', 'Онлайн-группа'], ['months', 'По месяцам'], ['backup', 'Копия']];
+  var TABS = [['summary', 'Сводка'], ['journal', 'Журнал'], ['clients', 'Клиенты'], ['groups', 'Мини-группы'], ['studio', 'Студия'], ['online', 'Онлайн-группа'], ['months', 'По месяцам'], ['tithe', 'Десятина'], ['backup', 'Копия']];
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -292,7 +300,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
   function num(v) { if (v === '' || v == null) return null; var n = Number(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
 
   /* ---------- состояние ---------- */
-  var S = { clients: {}, sessions: {}, studio: {}, studios: [], members: {}, subs: {}, groups: {}, fMember: 'all', tab: 'summary', month: todayStr().slice(0, 7), year: new Date().getFullYear(),
+  var S = { clients: {}, sessions: {}, studio: {}, studios: [], members: {}, subs: {}, groups: {}, tax: { ind: {}, grp: {}, onl: {} }, tpays: {}, tpct: 10, fMember: 'all', tab: 'summary', month: todayStr().slice(0, 7), year: new Date().getFullYear(),
     onlyUnpaid: false, fClient: '', fStatus: 'active', loaded: {}, mode: '', ready: false, rd: null };
   var DB = null;
   var busy = {};
@@ -305,12 +313,12 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
   function loadLocal() {
     try {
       var j = JSON.parse(localStorage.getItem(LKEY) || 'null');
-      if (j) { S.clients = j.clients || {}; S.sessions = j.sessions || {}; S.studio = j.studio || {}; S.studios = j.studios || []; S.members = j.members || {}; S.subs = j.subs || {}; S.groups = j.groups || {}; }
+      if (j) { S.clients = j.clients || {}; S.sessions = j.sessions || {}; S.studio = j.studio || {}; S.studios = j.studios || []; S.members = j.members || {}; S.subs = j.subs || {}; S.groups = j.groups || {}; S.tax = normTax(j.tax); S.tpays = j.tpays || {}; S.tpct = j.tpct != null ? j.tpct : 10; }
     } catch (e) { }
   }
   function saveLocal() {
     try {
-      localStorage.setItem(LKEY, JSON.stringify({ clients: S.clients, sessions: S.sessions, studio: S.studio, studios: S.studios, members: S.members, subs: S.subs, groups: S.groups }));
+      localStorage.setItem(LKEY, JSON.stringify({ clients: S.clients, sessions: S.sessions, studio: S.studio, studios: S.studios, members: S.members, subs: S.subs, groups: S.groups, tax: S.tax, tpays: S.tpays, tpct: S.tpct }));
       S.saveFail = false;
       if (!S.persisted && navigator.storage && navigator.storage.persist) { S.persisted = true; try { navigator.storage.persist().catch(function () { }); } catch (e) { } }
     } catch (e) { if (!S.saveFail) { S.saveFail = true; toast('Не удалось сохранить на устройстве. Выгрузите копию в Excel.', 'bad'); } }
@@ -365,6 +373,150 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     return ['clients', 'sessions', 'studio', 'members', 'subs', 'groups'].some(function (c) { return Object.keys(S[c]).some(function (k) { return S[c][k] && S[c][k].demo; }); });
   }
 
+
+  /* ---------- налог по месяцам ---------- */
+  var TITHE_PCT = 10;
+  var TAXSEC = { ind: 'индивидуальные', grp: 'мини-группы', onl: 'онлайн-группа' };
+  function normTax(t) {
+    var o = { ind: {}, grp: {}, onl: {} }; t = t || {};
+    Object.keys(o).forEach(function (k) {
+      var src = t[k] || {};
+      Object.keys(src).forEach(function (m) { var v = src[m]; if (/^\d{4}-\d\d$/.test(m) && v !== '' && v != null && !isNaN(Number(v))) o[k][m] = Number(v); });
+    });
+    return o;
+  }
+  // Процент налога месяца: свой, а если не задан, то из ближайшего предыдущего месяца с процентом.
+  function taxInfo(sec, month) {
+    var t = S.tax[sec] || {};
+    if (t[month] != null) return { pct: t[month], own: true, from: month };
+    var best = '';
+    Object.keys(t).forEach(function (m) { if (m < month && m > best) best = m; });
+    return best ? { pct: t[best], own: false, from: best } : { pct: 0, own: false, from: '' };
+  }
+  function secOf(s) { return s.gsid ? 'grp' : 'ind'; }
+  function sessTax(s) { if (!s.paid) return 0; return priceOf(s) * taxInfo(secOf(s), String(s.date).slice(0, 7)).pct / 100; }
+  function subTax(a) { if (a.free || !a.paid) return 0; return (Number(a.price) || 0) * taxInfo('onl', String(boughtOf(a)).slice(0, 7)).pct / 100; }
+  function monthTitle(m) { var a = m.split('-'); return MONTHS[+a[1] - 1] + ' ' + a[0]; }
+  function taxMonthLine(sec, month) {
+    var gross = emptyCur(), tax = emptyCur();
+    if (sec === 'onl') subList().forEach(function (a) { if (a.free || !a.paid || boughtOf(a).indexOf(month) !== 0) return; var c = memberCur(a.memberId); if (c in gross) { gross[c] += Number(a.price) || 0; tax[c] += subTax(a); } });
+    else sessionList().forEach(function (s) { if (!s.paid || s.date.indexOf(month) !== 0 || secOf(s) !== sec) return; var c = curOf(s); if (c in gross) { gross[c] += priceOf(s); tax[c] += sessTax(s); } });
+    var parts = CUR.filter(function (c) { return gross[c]; }).map(function (c) { return 'налог ' + money(tax[c], c) + ' · чистыми ' + money(gross[c] - tax[c], c); });
+    return parts.length ? parts.join(' · ') : 'оплаченных записей в этом месяце нет';
+  }
+  function taxBoxHTML(sec, month, nav) {
+    var ti = taxInfo(sec, month), note = ti.own ? '' : (ti.from ? 'процент как за ' + monthTitle(ti.from).toLowerCase() + '. ' : 'процент не задан. ');
+    return '<div class="taxbox">' + (nav ? '<button class="iconbtn" data-act="mprev" aria-label="Предыдущий месяц">‹</button>' : '') + '<b>' + monthTitle(month) + '</b>' + (nav ? '<button class="iconbtn" data-act="mnext" aria-label="Следующий месяц">›</button>' : '') +
+      '<label>Налог, %: ' + TAXSEC[sec] + '<input type="number" min="0" max="100" step="any" inputmode="decimal" data-tax="' + sec + ':' + month + '" value="' + (ti.own ? esc(ti.pct) : '') + '" placeholder="' + esc(ti.pct) + '"></label>' +
+      '<span class="muted">' + note + taxMonthLine(sec, month) + '</span></div>';
+  }
+
+  /* ---------- десятина ---------- */
+  function payYear(p) { return p.year ? +p.year : +String(p.date || '').slice(0, 4); }
+  function titheYear(y) {
+    var rows = [], ys = String(y) + '-', R = { gross: emptyCur(), tax: emptyCur(), net: emptyCur(), src: {}, mon: [], due: emptyCur(), paid: emptyCur(), left: emptyCur() }, i;
+    sessionList().forEach(function (s) {
+      if (!s.paid || String(s.date).indexOf(ys) !== 0) return;
+      var c = curOf(s); if (CUR.indexOf(c) < 0) return;
+      rows.push({ src: secOf(s), cur: c, m: +s.date.slice(5, 7) - 1, gross: priceOf(s), tax: sessTax(s) });
+    });
+    subList().forEach(function (a) {
+      var b = boughtOf(a); if (a.free || !a.paid || String(b).indexOf(ys) !== 0) return;
+      var c = memberCur(a.memberId); if (CUR.indexOf(c) < 0) return;
+      rows.push({ src: 'onl', cur: c, m: +b.slice(5, 7) - 1, gross: Number(a.price) || 0, tax: subTax(a) });
+    });
+    studioList().forEach(function (t) {
+      if (!t.paid || String(t.date).indexOf(ys) !== 0) return;
+      rows.push({ src: 'studio', cur: '₸', m: +t.date.slice(5, 7) - 1, gross: studioTotal(t), tax: 0 });
+    });
+    ['ind', 'grp', 'onl', 'studio'].forEach(function (k) { R.src[k] = emptyCur(); });
+    for (i = 0; i < 12; i++) R.mon.push(emptyCur());
+    rows.forEach(function (r) { var n = r.gross - r.tax; R.gross[r.cur] += r.gross; R.tax[r.cur] += r.tax; R.net[r.cur] += n; R.src[r.src][r.cur] += n; R.mon[r.m][r.cur] += n; });
+    var pct = TITHE_PCT;
+    CUR.forEach(function (c) { R.due[c] = R.net[c] * pct / 100; });
+    Object.keys(S.tpays).forEach(function (k) { var p = S.tpays[k]; if (payYear(p) !== y || !(p.cur in R.paid)) return; R.paid[p.cur] += Number(p.amount) || 0; });
+    CUR.forEach(function (c) { R.left[c] = R.due[c] - R.paid[c]; });
+    return R;
+  }
+  function tpayList() { return Object.keys(S.tpays).map(function (id) { return Object.assign({ id: id }, S.tpays[id]); }); }
+  function viewTithe() {
+    var R = titheYear(S.year), h = '';
+    h += '<div class="taxbox"><b>Десятина ' + TITHE_PCT + '%</b>' +
+      '<span class="muted">Считается от оплаченных доходов за ' + S.year + ' год после налога, отдельно по каждой валюте.</span></div>';
+    h += '<div class="grid four">' + CUR.map(function (c) {
+      var used = R.net[c] || R.paid[c], left = R.left[c], over = left < -0.005, z = Math.abs(left) < 0.005;
+      return '<section class="card' + (used ? '' : ' dim') + '"><div class="row"><div class="who">' + curBadge(c) + '<h3>Десятина, ' + CURNAME[c].toLowerCase() + '</h3></div></div>' +
+        '<div class="big">' + (used ? money(R.due[c], c) : '—') + '</div><div class="biglabel">нужно отдать за ' + S.year + ' год</div>' +
+        '<dl class="kv"><div><dt>Чистый доход</dt><dd>' + (used ? money(R.net[c], c) : '—') + '</dd></div>' +
+        '<div><dt>Отдано</dt><dd>' + (used ? money(R.paid[c], c) : '—') + '</dd></div>' +
+        '<div><dt>' + (over ? 'Переплата' : 'Осталось отдать') + '</dt><dd class="' + (!over && !z ? 'warn' : '') + '">' + (used ? money(z ? 0 : Math.abs(left), c) : '—') + '</dd></div></dl></section>';
+    }).join('') + '</div>';
+
+    var pays = tpayList().filter(function (p) { return payYear(p) === S.year; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    h += '<div class="sec"><h2>Оплаты десятины <small>за ' + S.year + ' год</small></h2>';
+    if (!pays.length) h += emptyBox('Оплат пока нет', 'Нажмите «+ Оплата». Можно отдать сразу всё или частями, остаток пересчитается.');
+    else {
+      h += '<div class="tablewrap"><table class="tight"><thead><tr><th>Дата</th><th class="num">Сумма</th><th>Заметка</th><th></th></tr></thead><tbody>';
+      pays.forEach(function (p) { h += '<tr><td>' + fmtDate(p.date) + '</td><td class="num">' + money(p.amount, p.cur) + '</td><td>' + esc(p.note) + '</td><td><button class="btn small" data-act="edittpay" data-id="' + esc(p.id) + '">Изменить</button></td></tr>'; });
+      h += '</tbody></table></div>';
+    }
+    h += '</div>';
+
+    h += '<div class="sec"><h2>Из чего посчитано <small>оплаченное за ' + S.year + ' год</small></h2><div class="tablewrap"><table class="tight"><thead><tr><th>Источник, чистыми после налога</th>' + CUR.map(function (c) { return '<th class="num">' + c + '</th>'; }).join('') + '</tr></thead><tbody>';
+    [['ind', 'Индивидуальные занятия'], ['grp', 'Мини-группы'], ['onl', 'Онлайн-группа'], ['studio', 'Студия (без налога)']].forEach(function (s) {
+      h += '<tr><td>' + s[1] + '</td>' + CUR.map(function (c) { return '<td class="num">' + moneyDash(R.src[s[0]][c], c) + '</td>'; }).join('') + '</tr>';
+    });
+    h += '<tr class="total"><td>Чистый доход</td>' + CUR.map(function (c) { return '<td class="num">' + moneyDash(R.net[c], c) + '</td>'; }).join('') + '</tr>' +
+      '<tr><td class="muted">Получено до налога</td>' + CUR.map(function (c) { return '<td class="num muted">' + moneyDash(R.gross[c], c) + '</td>'; }).join('') + '</tr>' +
+      '<tr><td class="muted">Налог</td>' + CUR.map(function (c) { return '<td class="num muted">' + moneyDash(R.tax[c], c) + '</td>'; }).join('') + '</tr>' +
+      '<tr class="total"><td>Десятина, ' + TITHE_PCT + '%</td>' + CUR.map(function (c) { return '<td class="num">' + moneyDash(R.due[c], c) + '</td>'; }).join('') + '</tr>';
+    h += '</tbody></table></div></div>';
+
+    h += '<div class="sec"><h2>По месяцам <small>чистый доход</small></h2><div class="tablewrap"><table class="tight"><thead><tr><th>Месяц</th>' + CUR.map(function (c) { return '<th class="num">' + c + '</th>'; }).join('') + '</tr></thead><tbody>';
+    R.mon.forEach(function (row, i) { if (CUR.some(function (c) { return row[c]; })) h += '<tr><td>' + MONTHS[i] + '</td>' + CUR.map(function (c) { return '<td class="num">' + moneyDash(row[c], c) + '</td>'; }).join('') + '</tr>'; });
+    if (!CUR.some(function (c) { return R.net[c]; })) h += '<tr><td colspan="4" class="muted">За ' + S.year + ' год оплаченных доходов пока нет.</td></tr>';
+    h += '</tbody></table></div></div>' +
+      '<p class="muted" style="margin-top:10px">В расчёт входят только оплаченные занятия и абонементы (бесплатные доступы не считаются). Налог задаётся по месяцам на вкладках «Журнал», «Мини-группы» и «Онлайн-группа». Доход студии идёт без налога.</p>';
+    return h;
+  }
+  function remainFor(year, cur, exId) {
+    var left = titheYear(year).left[cur], p = exId ? S.tpays[exId] : null;
+    if (p && payYear(p) === year && p.cur === cur) left += Number(p.amount) || 0;
+    return left;
+  }
+  function openTithePay(id) {
+    var ex = id ? S.tpays[id] : null;
+    var d = ex || { date: todayStr(), amount: '', cur: '₸', year: S.year, note: '' };
+    var yrs = yearOptions(); if (yrs.indexOf(payYear(d)) < 0) yrs.push(payYear(d)); yrs.sort();
+    var html = '<h2>' + (ex ? 'Оплата десятины' : 'Новая оплата десятины') + '</h2><form class="form" id="f" novalidate>' +
+      '<label>Дата<input type="date" name="date" value="' + esc(d.date) + '" required></label>' +
+      '<div><div style="font-weight:500;font-size:13px;margin-bottom:4px">Валюта</div><div class="seg cur">' + CUR.map(function (c) { return '<label><input type="radio" name="cur" value="' + c + '"' + (c === d.cur ? ' checked' : '') + '><span title="' + CURNAME[c] + '">' + c + '</span></label>'; }).join('') + '</div></div>' +
+      '<label>За какой год<select name="year">' + yrs.map(function (y) { return '<option' + (y === payYear(d) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></label>' +
+      '<div class="pricebox" id="tbox"></div>' +
+      '<label>Сумма<span class="withunit"><input type="number" name="amount" min="0" step="any" inputmode="decimal" value="' + (d.amount !== '' && d.amount != null ? esc(d.amount) : '') + '"><span class="u"></span></span></label>' +
+      '<label>Заметка<input type="text" name="note" value="' + esc(d.note || '') + '"></label><div class="errmsg" role="alert"></div>' +
+      '<div class="actions">' + (ex ? '<button type="button" class="btn danger left" id="del">Удалить</button>' : '') + '<button type="button" class="btn" data-act="close">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></form>';
+    openModal(html, function (el) {
+      var f = el.querySelector('#f');
+      function upd() {
+        var c = f.cur.value, y = +f.year.value, left = remainFor(y, c, id);
+        Array.prototype.forEach.call(el.querySelectorAll('.u'), function (u) { u.textContent = c; });
+        el.querySelector('#tbox').innerHTML = left > 0.005 ? 'Осталось отдать за ' + y + ' год: <b>' + money(left, c) + '</b> <button type="button" class="btn small" id="fill">Вписать остаток</button>' : 'За ' + y + ' год в ' + c + ' всё отдано или дохода ещё нет.';
+        var b = el.querySelector('#fill'); if (b) b.addEventListener('click', function () { f.amount.value = Math.round(left * 100) / 100; });
+      }
+      Array.prototype.forEach.call(f.querySelectorAll('input[name=cur]'), function (r) { r.addEventListener('change', upd); });
+      f.year.addEventListener('change', upd); upd();
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var a = num(f.amount.value);
+        if (!f.date.value) return setErr(el, 'Укажите дату.');
+        if (!(a > 0)) return setErr(el, 'Укажите сумму.');
+        put('tpays', id || newId('p'), { date: f.date.value, amount: a, cur: f.cur.value, year: +f.year.value, note: f.note.value.trim() }).then(function (ok) { if (ok) closeModal(); });
+      });
+      if (ex) armDelete(el.querySelector('#del'), function () { del('tpays', id).then(function (ok) { if (ok) closeModal(); }); });
+    });
+  }
+
   /* ---------- общие куски разметки ---------- */
   function yearOptions() {
     var ys = {}; var cy = new Date().getFullYear();
@@ -394,7 +546,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     if (!hasAnyData()) return welcomeHTML();
     var m = S.month, weeks = daysInMonth(m) / 7;
     var ms = sessionList().filter(function (s) { return s.date.indexOf(m) === 0; });
-    var agg = aggregate(ms);
+    var agg = aggregate(ms), taxC = sumByCur(ms.filter(function (s) { return s.paid; }), sessTax);
     var st = studioList().filter(function (t) { return t.date.indexOf(m) === 0; });
     var sAcc = sum(st, studioTotal), sPaid = sum(st.filter(function (t) { return t.paid; }), studioTotal);
     var h = '<div class="grid four">';
@@ -404,6 +556,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
         '<div class="big">' + (a.n ? money(a.sum, c) : '—') + '</div><div class="biglabel">начислено</div>' +
         '<dl class="kv"><div><dt>Оплачено</dt><dd>' + (a.n ? money(a.paid, c) : '—') + '</dd></div>' +
         '<div><dt>Не оплачено</dt><dd class="' + (a.sum - a.paid > 0 ? 'warn' : '') + '">' + (a.n ? money(a.sum - a.paid, c) : '—') + '</dd></div>' +
+        (taxC[c] > 0 ? '<div><dt>Налог с оплаченного</dt><dd>' + money(taxC[c], c) + '</dd></div><div><dt>Чистыми после налога</dt><dd><b>' + money(a.paid - taxC[c], c) + '</b></dd></div>' : '') +
         '<div><dt>Средняя цена занятия</dt><dd>' + (a.n ? money(a.sum / a.n, c) : '—') + '</dd></div></dl></section>';
     });
     h += '<section class="card' + (st.length ? '' : ' dim') + '"><div class="row"><div class="who">' + curBadge('₸') + '<h3>Работа в студии</h3></div><span class="cnt">' + st.length + ' ' + plural(st.length, ['занятие', 'занятия', 'занятий']) + '</span></div>' +
@@ -456,15 +609,16 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
 
   /* ---------- Журнал ---------- */
   function viewJournal() {
+    var box = taxBoxHTML('ind', S.month, false);
     var l = sessionList().filter(function (s) { return s.date.indexOf(S.month) === 0; });
     if (S.fClient) l = l.filter(function (s) { return s.clientId === S.fClient; });
     if (S.onlyUnpaid) l = l.filter(function (s) { return !s.paid; });
     l.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.id < b.id ? 1 : -1); });
     if (!l.length) {
-      return emptyBox('Занятий не найдено', S.onlyUnpaid || S.fClient ? 'Попробуйте снять фильтры.' : 'В этом месяце записей нет. Нажмите «+ Занятие», чтобы добавить первое.');
+      return box + emptyBox('Занятий не найдено', S.onlyUnpaid || S.fClient ? 'Попробуйте снять фильтры.' : 'В этом месяце записей нет. Нажмите «+ Занятие», чтобы добавить первое.');
     }
     var agg = aggregate(l);
-    var h = '<div class="tablewrap"><table><thead><tr><th>Дата</th><th>Клиент</th><th>Тип</th><th class="num">Цена</th><th>Оплата</th><th>Заметка</th><th></th></tr></thead><tbody>';
+    var h = box + '<div class="tablewrap"><table><thead><tr><th>Дата</th><th>Клиент</th><th>Тип</th><th class="num">Цена</th><th>Оплата</th><th>Заметка</th><th></th></tr></thead><tbody>';
     l.forEach(function (s) {
       var c = S.clients[s.clientId], cu = curOf(s);
       var custom = s.price != null && s.price !== '' && !s.gsid;
@@ -559,7 +713,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
   /* ---------- По месяцам ---------- */
   function monthRows(y) {
     var rows = [], seen = [];
-    for (var i = 0; i < 12; i++) { rows.push({ n: 0, r: 0, m: 0, acc: emptyCur(), debt: emptyCur(), studio: 0, og: emptyCur(), ogDebt: emptyCur(), ogFree: 0 }); seen.push({}); }
+    for (var i = 0; i < 12; i++) { rows.push({ n: 0, r: 0, m: 0, acc: emptyCur(), debt: emptyCur(), studio: 0, og: emptyCur(), ogDebt: emptyCur(), ogFree: 0, cpaid: emptyCur(), ctax: emptyCur(), opaid: emptyCur(), otax: emptyCur(), spaid: 0 }); seen.push({}); }
     sessionList().forEach(function (s) {
       if (s.date.indexOf(y + '-') !== 0) return;
       var k = +s.date.slice(5, 7) - 1, row = rows[k];
@@ -568,15 +722,15 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
         row.n++;
         if (s.type === 'Мат') row.m++; else row.r++;
       }
-      var c = curOf(s); if (c in row.acc) { var p = priceOf(s); row.acc[c] += p; if (!s.paid) row.debt[c] += p; }
+      var c = curOf(s); if (c in row.acc) { var p = priceOf(s); row.acc[c] += p; if (!s.paid) row.debt[c] += p; else { row.cpaid[c] += p; row.ctax[c] += sessTax(s); } }
     });
-    studioList().forEach(function (t) { if (t.date.indexOf(y + '-') === 0) rows[+t.date.slice(5, 7) - 1].studio += studioTotal(t); });
+    studioList().forEach(function (t) { if (t.date.indexOf(y + '-') === 0) { var sr = rows[+t.date.slice(5, 7) - 1]; sr.studio += studioTotal(t); if (t.paid) sr.spaid += studioTotal(t); } });
     subList().forEach(function (a) {
       var b = boughtOf(a); if (b.indexOf(y + '-') !== 0) return;
       var row = rows[+b.slice(5, 7) - 1];
       if (a.free) { row.ogFree++; return; }
       var c = memberCur(a.memberId), p = Number(a.price) || 0;
-      if (c in row.og) { row.og[c] += p; if (!a.paid) row.ogDebt[c] += p; }
+      if (c in row.og) { row.og[c] += p; if (!a.paid) row.ogDebt[c] += p; else { row.opaid[c] += p; row.otax[c] += subTax(a); } }
     });
     return rows;
   }
@@ -614,12 +768,12 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
   }
   function chartHTML(rows) {
     chartData = [];
-    var og = function (c) { return { name: 'Онлайн-группа', cur: c, color: 'var(--s5)', get: function (r) { return r.og[c]; } }; };
+    var og = function (c) { return { name: 'Онлайн-группа', cur: c, color: 'var(--s5)', get: function (r) { return r.opaid[c] - r.otax[c]; } }; };
     var panels = [
-      { t: 'Тенге ₸: клиенты и онлайн-группа', s: [{ name: 'Клиенты', cur: '₸', color: 'var(--s1)', get: function (r) { return r.acc['₸']; } }, og('₸')] },
-      { t: 'Рубли ₽: клиенты и онлайн-группа', s: [{ name: 'Клиенты', cur: '₽', color: 'var(--s3)', get: function (r) { return r.acc['₽']; } }, og('₽')] },
-      { t: 'Доллары $: клиенты и онлайн-группа', s: [{ name: 'Клиенты', cur: '$', color: 'var(--s4)', get: function (r) { return r.acc['$']; } }, og('$')] },
-      { t: 'Работа в студии, тенге ₸', s: [{ name: 'Студия', cur: '₸', color: 'var(--s2)', get: function (r) { return r.studio; } }] }
+      { t: 'Тенге ₸: чистыми, клиенты и онлайн-группа', s: [{ name: 'Клиенты', cur: '₸', color: 'var(--s1)', get: function (r) { return r.cpaid['₸'] - r.ctax['₸']; } }, og('₸')] },
+      { t: 'Рубли ₽: чистыми, клиенты и онлайн-группа', s: [{ name: 'Клиенты', cur: '₽', color: 'var(--s3)', get: function (r) { return r.cpaid['₽'] - r.ctax['₽']; } }, og('₽')] },
+      { t: 'Доллары $: чистыми, клиенты и онлайн-группа', s: [{ name: 'Клиенты', cur: '$', color: 'var(--s4)', get: function (r) { return r.cpaid['$'] - r.ctax['$']; } }, og('$')] },
+      { t: 'Работа в студии, тенге ₸ (выплачено)', s: [{ name: 'Студия', cur: '₸', color: 'var(--s2)', get: function (r) { return r.spaid; } }] }
     ];
     var legend = [['Клиенты ₸', 'var(--s1)'], ['Клиенты ₽', 'var(--s3)'], ['Клиенты $', 'var(--s4)'], ['Студия ₸', 'var(--s2)'], ['Онлайн-группа (во всех валютах)', 'var(--s5)']];
     var h = '<div class="chartbox" id="chartbox"><div class="legend">' + legend.map(function (p) { return '<span><i style="background:' + p[1] + '"></i>' + p[0] + '</span>'; }).join('') + '</div><div class="chartgrid">';
@@ -630,25 +784,27 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
   }
   function viewMonths() {
     var y = S.year, rows = monthRows(y);
-    var tot = { n: 0, r: 0, m: 0, acc: emptyCur(), debt: emptyCur(), studio: 0, og: emptyCur(), ogDebt: emptyCur(), ogFree: 0 };
-    rows.forEach(function (r) { tot.n += r.n; tot.r += r.r; tot.m += r.m; tot.studio += r.studio; tot.ogFree += r.ogFree; CUR.forEach(function (c) { tot.acc[c] += r.acc[c]; tot.debt[c] += r.debt[c]; tot.og[c] += r.og[c]; tot.ogDebt[c] += r.ogDebt[c]; }); });
+    var tot = { n: 0, r: 0, m: 0, acc: emptyCur(), debt: emptyCur(), studio: 0, og: emptyCur(), ogDebt: emptyCur(), ogFree: 0, tx: emptyCur(), nt: emptyCur() };
+    rows.forEach(function (r) { tot.n += r.n; tot.r += r.r; tot.m += r.m; tot.studio += r.studio; tot.ogFree += r.ogFree; CUR.forEach(function (c) { tot.acc[c] += r.acc[c]; tot.debt[c] += r.debt[c]; tot.og[c] += r.og[c]; tot.ogDebt[c] += r.ogDebt[c]; tot.tx[c] += r.ctax[c] + r.otax[c]; tot.nt[c] += r.cpaid[c] - r.ctax[c] + r.opaid[c] - r.otax[c]; }); });
     var ogCell = function (v, d, c) { return '<td class="num">' + moneyDash(v, c) + (d > 0 ? '<div class="cell-sub warn">не оплачено ' + money(d, c) + '</div>' : '') + '</td>'; };
-    var h = '<div class="sec" style="margin-top:0"><h2>Доход по месяцам <small>у каждого графика свой масштаб, курс не используется</small></h2>' + chartHTML(rows) + '</div>';
-    h += '<div class="sec"><h2>Все месяцы ' + y + ' <small>валюты не пересчитываются по курсу</small></h2><div class="tablewrap"><table style="min-width:1240px"><thead><tr><th>Месяц</th><th class="num">Занятий</th><th class="num">Реф.</th><th class="num">Мат</th>' +
-      '<th class="num">Начислено ₸</th><th class="num">Начислено ₽</th><th class="num">Начислено $</th><th class="num">Не оплачено ₸</th><th class="num">Не оплачено ₽</th><th class="num">Не оплачено $</th><th class="num">Студия ₸</th><th class="num">Онлайн ₸</th><th class="num">Онлайн ₽</th><th class="num">Онлайн $</th></tr></thead><tbody>';
+    var h = '<div class="sec" style="margin-top:0"><h2>Доход по месяцам <small>на графиках чистыми: оплачено минус налог. У каждого графика свой масштаб, курс не используется</small></h2>' + chartHTML(rows) + '</div>';
+    h += '<div class="sec"><h2>Все месяцы ' + y + ' <small>валюты не пересчитываются по курсу</small></h2><div class="tablewrap"><table style="min-width:1780px"><thead><tr><th>Месяц</th><th class="num">Занятий</th><th class="num">Реф.</th><th class="num">Мат</th>' +
+      '<th class="num">Начислено ₸</th><th class="num">Начислено ₽</th><th class="num">Начислено $</th><th class="num">Не оплачено ₸</th><th class="num">Не оплачено ₽</th><th class="num">Не оплачено $</th><th class="num">Студия ₸</th><th class="num">Онлайн ₸</th><th class="num">Онлайн ₽</th><th class="num">Онлайн $</th><th class="num">Налог ₸</th><th class="num">Налог ₽</th><th class="num">Налог $</th><th class="num">Чистыми ₸</th><th class="num">Чистыми ₽</th><th class="num">Чистыми $</th></tr></thead><tbody>';
     var cur = todayStr().slice(0, 7);
     rows.forEach(function (r, i) {
       var key = y + '-' + p2(i + 1);
       h += '<tr' + (key === cur ? ' style="font-weight:600"' : '') + '><td><button class="btn link" data-act="openmonth" data-id="' + key + '">' + MONTHS[i] + '</button></td><td class="num">' + r.n + '</td><td class="num">' + r.r + '</td><td class="num">' + r.m + '</td>' +
         CUR.map(function (c) { return '<td class="num">' + moneyDash(r.acc[c], c) + '</td>'; }).join('') +
         CUR.map(function (c) { return '<td class="num ' + (r.debt[c] > 0 ? 'warn' : '') + '">' + moneyDash(r.debt[c], c) + '</td>'; }).join('') +
-        '<td class="num">' + moneyDash(r.studio, '₸') + '</td>' + CUR.map(function (c) { return ogCell(r.og[c], r.ogDebt[c], c); }).join('') + '</tr>';
+        '<td class="num">' + moneyDash(r.studio, '₸') + '</td>' + CUR.map(function (c) { return ogCell(r.og[c], r.ogDebt[c], c); }).join('') +
+        CUR.map(function (c) { return '<td class="num">' + moneyDash(r.ctax[c] + r.otax[c], c) + '</td>'; }).join('') + CUR.map(function (c) { return '<td class="num"><b>' + (r.cpaid[c] + r.opaid[c] ? money(r.cpaid[c] - r.ctax[c] + r.opaid[c] - r.otax[c], c) : '<span class="muted">—</span>') + '</b></td>'; }).join('') + '</tr>';
     });
     h += '<tr class="total"><td>Итого</td><td class="num">' + tot.n + '</td><td class="num">' + tot.r + '</td><td class="num">' + tot.m + '</td>' +
       CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.acc[c], c) + '</td>'; }).join('') +
       CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.debt[c], c) + '</td>'; }).join('') +
-      '<td class="num">' + moneyDash(tot.studio, '₸') + '</td>' + CUR.map(function (c) { return ogCell(tot.og[c], tot.ogDebt[c], c); }).join('') + '</tr></tbody></table></div>' +
-      (tot.ogFree ? '<p class="muted" style="margin-top:10px">Бесплатных доступов в онлайн-группе за год: ' + tot.ogFree + '. Платные абонементы учитываются в месяц покупки.</p>' : '<p class="muted" style="margin-top:10px">Абонементы онлайн-группы учитываются в месяц покупки.</p>') + '</div>';
+      '<td class="num">' + moneyDash(tot.studio, '₸') + '</td>' + CUR.map(function (c) { return ogCell(tot.og[c], tot.ogDebt[c], c); }).join('') +
+      CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.tx[c], c) + '</td>'; }).join('') + CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.nt[c], c) + '</td>'; }).join('') + '</tr></tbody></table></div>' +
+      (tot.ogFree ? '<p class="muted" style="margin-top:10px">Бесплатных доступов в онлайн-группе за год: ' + tot.ogFree + '. Платные абонементы учитываются в месяц покупки.</p>' : '<p class="muted" style="margin-top:10px">Абонементы онлайн-группы учитываются в месяц покупки.</p>') + '<p class="muted" style="margin-top:6px">Чистыми: оплаченное (клиенты и онлайн-группа) минус налог. Налог задаётся по месяцам на вкладках «Журнал», «Мини-группы» и «Онлайн-группа». На графиках студия показана выплаченной.</p></div>';
     return h;
   }
 
@@ -760,12 +916,12 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     if (!rows.length && !sm.length) {
       return '<section class="card dim" style="margin-bottom:14px"><div class="row"><h3>Онлайн-группа</h3><button class="btn small" data-act="tab" data-id="online">Открыть</button></div><p class="muted" style="margin:0">Участников пока нет. Занятия в записи, доступ по абонементам: добавьте участников на вкладке «Онлайн-группа».</p></section>';
     }
-    var by = {}; CUR.forEach(function (c) { by[c] = { n: 0, sum: 0, paid: 0 }; });
+    var by = {}; CUR.forEach(function (c) { by[c] = { n: 0, sum: 0, paid: 0, tax: 0 }; });
     var freeN = 0;
     sm.forEach(function (a) {
       if (a.free) { freeN++; return; }
       var c = memberCur(a.memberId); if (!by[c]) return;
-      var p = Number(a.price) || 0; by[c].n++; by[c].sum += p; if (a.paid) by[c].paid += p;
+      var p = Number(a.price) || 0; by[c].n++; by[c].sum += p; if (a.paid) { by[c].paid += p; by[c].tax += subTax(a); }
     });
     var used = CUR.filter(function (c) { return by[c].n; });
     var h = '<section class="card" style="margin-bottom:14px"><div class="row"><div class="who"><h3>Онлайн-группа</h3><span class="cnt">абонементы, занятия в записи</span></div><button class="btn small" data-act="tab" data-id="online">Открыть список</button></div>' +
@@ -775,10 +931,10 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
       '<span class="' + (o.unpaid ? 'warn' : '') + '"><b>' + o.unpaid + '</b>не оплатили</span>' +
       '<span><b>' + o.free + '</b>бесплатно</span></div>';
     if (used.length) {
-      h += '<div class="tablewrap"><table style="min-width:460px"><thead><tr><th>Поступления за месяц</th><th class="num">Продаж</th><th class="num">Начислено</th><th class="num">Оплачено</th><th class="num">Не оплачено</th></tr></thead><tbody>';
+      h += '<div class="tablewrap"><table style="min-width:640px"><thead><tr><th>Поступления за месяц</th><th class="num">Продаж</th><th class="num">Начислено</th><th class="num">Оплачено</th><th class="num">Не оплачено</th><th class="num">Налог</th><th class="num">Чистыми</th></tr></thead><tbody>';
       used.forEach(function (c) {
         var a = by[c];
-        h += '<tr><td>' + curBadge(c) + ' <span style="margin-left:6px">' + CURNAME[c] + '</span></td><td class="num">' + a.n + '</td><td class="num">' + money(a.sum, c) + '</td><td class="num">' + money(a.paid, c) + '</td><td class="num ' + (a.sum - a.paid > 0 ? 'warn' : '') + '">' + moneyDash(a.sum - a.paid, c) + '</td></tr>';
+        h += '<tr><td>' + curBadge(c) + ' <span style="margin-left:6px">' + CURNAME[c] + '</span></td><td class="num">' + a.n + '</td><td class="num">' + money(a.sum, c) + '</td><td class="num">' + money(a.paid, c) + '</td><td class="num ' + (a.sum - a.paid > 0 ? 'warn' : '') + '">' + moneyDash(a.sum - a.paid, c) + '</td><td class="num">' + moneyDash(a.tax, c) + '</td><td class="num">' + moneyDash(a.paid - a.tax, c) + '</td></tr>';
       });
       h += '</tbody></table></div>';
     } else {
@@ -790,8 +946,8 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
 
   /* ---------- онлайн-группа: вкладка ---------- */
   function viewOnline() {
-    var rows = onlineRows();
-    if (!rows.length) return emptyBox('Участников пока нет', 'Нажмите «+ Участник» и оформите ему абонемент: неделя, месяц, 3 месяца или бесплатный доступ.');
+    var rows = onlineRows(), box = taxBoxHTML('onl', S.month, true);
+    if (!rows.length) return box + emptyBox('Участников пока нет', 'Нажмите «+ Участник» и оформите ему абонемент: неделя, месяц, 3 месяца или бесплатный доступ.');
     var f = S.fMember;
     var l = rows.filter(function (r) {
       var arch = r.m.status === 'Ушёл';
@@ -809,8 +965,8 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
       if (a.st.kind === 'soon' || a.st.kind === 'active') return a.st.left - b.st.left;
       return String(a.m.name).localeCompare(String(b.m.name), 'ru');
     });
-    if (!l.length) return emptyBox('Никого не найдено', f === 'attn' ? 'Нет тех, у кого абонемент заканчивается или закончился.' : 'Попробуйте другой фильтр.');
-    var h = '<div class="tablewrap"><table style="min-width:860px"><thead><tr><th>Участник</th><th>Доступ</th><th>Абонемент</th><th>Оплата</th><th class="num">Оплачено всего</th><th></th></tr></thead><tbody>';
+    if (!l.length) return box + emptyBox('Никого не найдено', f === 'attn' ? 'Нет тех, у кого абонемент заканчивается или закончился.' : 'Попробуйте другой фильтр.');
+    var h = box + '<div class="tablewrap"><table style="min-width:860px"><thead><tr><th>Участник</th><th>Доступ</th><th>Абонемент</th><th>Оплата</th><th class="num">Оплачено всего</th><th></th></tr></thead><tbody>';
     l.forEach(function (r) {
       var m = r.m, st = r.st, cu = m.currency, cur = st.cur || st.last;
       var paidSum = sum(r.subs.filter(function (a) { return !a.free && a.paid; }), function (a) { return Number(a.price) || 0; });
@@ -844,10 +1000,10 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     return p.length ? p.join(' · ') : '—';
   }
   function viewGroups() {
-    var gl = groupList();
-    if (!gl.length) return emptyBox('Мини-групп пока нет', 'Мини-группа — это 2–4 клиента, которые занимаются вместе. Цена занятия либо делится поровну между пришедшими, либо у каждого своя фиксированная цена. Нажмите «+ Группа».');
+    var gl = groupList(), box = taxBoxHTML('grp', S.month, true);
+    if (!gl.length) return box + emptyBox('Мини-групп пока нет', 'Мини-группа — это 2–4 клиента, которые занимаются вместе. Цена занятия либо делится поровну между пришедшими, либо у каждого своя фиксированная цена. Нажмите «+ Группа».');
     var ss = sessionList();
-    var h = '<div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Группа</th><th>Участники</th><th>Цена</th><th class="num">Занятий</th><th>Последнее</th><th></th></tr></thead><tbody>';
+    var h = box + '<div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Группа</th><th>Участники</th><th>Цена</th><th class="num">Занятий</th><th>Последнее</th><th></th></tr></thead><tbody>';
     gl.forEach(function (g) {
       var seen = {}, last = '';
       ss.forEach(function (s) { if (s.gid === g.id) { seen[s.gsid || s.id] = 1; if (s.date > last) last = s.date; } });
@@ -894,6 +1050,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     else if (S.tab === 'groups') tb = '<span class="spacer"></span><button class="btn" data-act="addgroup">+ Группа</button><button class="btn primary" data-act="addgsession">+ Занятие группы</button>';
     else if (S.tab === 'online') tb = onlineChips() + '<span class="spacer"></span><button class="btn primary" data-act="addmember">+ Участник</button>';
     else if (S.tab === 'months') tb = yearNav();
+    else if (S.tab === 'tithe') tb = yearNav() + '<span class="spacer"></span><button class="btn primary" data-act="addtpay">+ Оплата</button>';
     else tb = '';
     var tbEl = $('#toolbar');
     var active = document.activeElement && tbEl.contains(document.activeElement) ? document.activeElement.getAttribute('data-bind') : null;
@@ -904,7 +1061,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     if (!S.ready) { view.innerHTML = '<div class="loading">Загружаю данные…</div>'; return; }
     var scrollers = Array.prototype.map.call(view.querySelectorAll('.tablewrap'), function (n) { return n.scrollLeft; });
     var focusRate = (document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-rate')) || null;
-    view.innerHTML = S.tab === 'summary' ? viewSummary() : S.tab === 'journal' ? viewJournal() : S.tab === 'clients' ? viewClients() : S.tab === 'groups' ? viewGroups() : S.tab === 'studio' ? viewStudio() : S.tab === 'online' ? viewOnline() : S.tab === 'backup' ? viewBackup() : viewMonths();
+    view.innerHTML = S.tab === 'summary' ? viewSummary() : S.tab === 'journal' ? viewJournal() : S.tab === 'clients' ? viewClients() : S.tab === 'groups' ? viewGroups() : S.tab === 'studio' ? viewStudio() : S.tab === 'online' ? viewOnline() : S.tab === 'tithe' ? viewTithe() : S.tab === 'backup' ? viewBackup() : viewMonths();
     Array.prototype.forEach.call(view.querySelectorAll('.tablewrap'), function (n, i) { if (scrollers[i]) n.scrollLeft = scrollers[i]; });
     if (focusRate) { var f = view.querySelector('[data-rate="' + focusRate + '"]'); if (f) f.focus(); }
   }
@@ -1431,6 +1588,8 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
       case 'addsession': openSession(); break;
       case 'editsession': openSession(id); break;
       case 'addclient': openClient(); break;
+      case 'addtpay': openTithePay(); break;
+      case 'edittpay': openTithePay(id); break;
       case 'addmember': openMember(); break;
       case 'editmember': openMember(id); break;
       case 'renew': openSub(id); break;
@@ -1493,6 +1652,18 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     else if (b === 'fclient') { S.fClient = v; }
     else if (b === 'unpaid') { S.onlyUnpaid = e.target.checked; }
     render();
+  });
+  document.addEventListener('change', function (e) {
+    var el = e.target, k = el.getAttribute && el.getAttribute('data-tax');
+    if (k) {
+      var p = k.split(':'), v = String(el.value).trim(), n = num(v);
+      if (!S.tax[p[0]]) S.tax[p[0]] = {};
+      if (v === '' || n == null) delete S.tax[p[0]][p[1]]; else S.tax[p[0]][p[1]] = Math.max(0, Math.min(100, n));
+      saveLocal(); render(); return;
+    }
+    if (el.getAttribute && el.getAttribute('data-tpct')) {
+      var q = num(el.value); S.tpct = q == null ? 10 : Math.max(0, Math.min(100, q)); saveLocal(); render();
+    }
   });
   document.addEventListener('input', function (e) {
     var r = e.target.getAttribute && e.target.getAttribute('data-rate'); if (!r || !S.rd) return;
@@ -1589,13 +1760,15 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     sessionList().forEach(function (s) { months[s.date.slice(0, 7)] = 1; });
     studioList().forEach(function (t) { months[t.date.slice(0, 7)] = 1; });
     subList().forEach(function (a) { if (boughtOf(a)) months[boughtOf(a).slice(0, 7)] = 1; });
-    var s5 = [['Месяц', 'Занятий', 'Начислено ₸', 'Начислено ₽', 'Начислено $', 'Не оплачено ₸', 'Не оплачено ₽', 'Не оплачено $', 'Студия ₸', 'Онлайн-группа ₸', 'Онлайн-группа ₽', 'Онлайн-группа $']];
+    var s5 = [['Месяц', 'Занятий', 'Начислено ₸', 'Начислено ₽', 'Начислено $', 'Не оплачено ₸', 'Не оплачено ₽', 'Не оплачено $', 'Студия ₸', 'Онлайн-группа ₸', 'Онлайн-группа ₽', 'Онлайн-группа $', 'Налог ₸', 'Налог ₽', 'Налог $', 'Чистыми ₸', 'Чистыми ₽', 'Чистыми $']];
     Object.keys(months).sort().forEach(function (k) {
       var ms = sessionList().filter(function (s) { return s.date.indexOf(k) === 0; }), agg = aggregate(ms), unpaid = aggregate(ms.filter(function (s) { return !s.paid; }));
       var st = sum(studioList().filter(function (t) { return t.date.indexOf(k) === 0; }), studioTotal);
       var og = emptyCur();
       subList().forEach(function (a) { if (a.free || boughtOf(a).indexOf(k) !== 0) return; var c = memberCur(a.memberId); if (c in og) og[c] += Number(a.price) || 0; });
-      s5.push([MONTHS[+k.slice(5) - 1] + ' ' + k.slice(0, 4), units(ms), m(agg['₸'].sum, '₸'), m(agg['₽'].sum, '₽'), m(agg['$'].sum, '$'), m(unpaid['₸'].sum, '₸'), m(unpaid['₽'].sum, '₽'), m(unpaid['$'].sum, '$'), m(st, '₸'), m(og['₸'], '₸'), m(og['₽'], '₽'), m(og['$'], '$')]);
+      var pms = ms.filter(function (s) { return s.paid; }), tx = sumByCur(pms, sessTax), cp = sumByCur(pms, priceOf);
+      subList().forEach(function (a) { if (a.free || !a.paid || boughtOf(a).indexOf(k) !== 0) return; var c = memberCur(a.memberId); if (c in tx) { tx[c] += subTax(a); cp[c] += Number(a.price) || 0; } });
+      s5.push([MONTHS[+k.slice(5) - 1] + ' ' + k.slice(0, 4), units(ms), m(agg['₸'].sum, '₸'), m(agg['₽'].sum, '₽'), m(agg['$'].sum, '$'), m(unpaid['₸'].sum, '₸'), m(unpaid['₽'].sum, '₽'), m(unpaid['$'].sum, '$'), m(st, '₸'), m(og['₸'], '₸'), m(og['₽'], '₽'), m(og['$'], '$'), m(tx['₸'], '₸'), m(tx['₽'], '₽'), m(tx['$'], '$'), m(cp['₸'] - tx['₸'], '₸'), m(cp['₽'] - tx['₽'], '₽'), m(cp['$'] - tx['$'], '$')]);
     });
     var s6 = [['Название', 'Режим', 'Валюта', 'Цена: реформер', 'Цена: мат', 'В архиве', 'Заметка']];
     var s7 = [['Группа', 'Клиент', 'Валюта', 'Цена: реформер', 'Цена: мат']];
@@ -1613,9 +1786,14 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
       var mm = S.members[a.memberId], cu = mm ? mm.currency : '';
       s9.push([mm ? mm.name : '', planName(a.plan), a.free ? 'Да' : 'Нет', { d: a.start }, { d: a.end }, boughtOf(a) ? { d: boughtOf(a) } : null, a.free ? null : m(a.price, cu), a.free ? '' : (a.paid ? 'Да' : 'Нет'), a.paidDate ? { d: a.paidDate } : null, a.note || '']);
     });
+    var s10 = [['Раздел', 'Месяц', 'Налог, %']];
+    ['ind', 'grp', 'onl'].forEach(function (k) { Object.keys(S.tax[k] || {}).sort().forEach(function (mo) { s10.push([TAXSEC[k], { d: mo + '-01' }, Number(S.tax[k][mo])]); }); });
+    var s11 = [['Дата', 'Сумма', 'Валюта', 'За год', 'Заметка']];
+    tpayList().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).forEach(function (p) { s11.push([{ d: p.date }, m(p.amount, p.cur), p.cur, payYear(p), p.note || '']); });
+    var s12 = [['Параметр', 'Значение'], ['Процент десятины', TITHE_PCT]];
     var sheets = [['Клиенты', s1, [18, 24, 14, 9, 15, 12, 12, 13, 28]], ['Журнал', s2, [13, 18, 12, 13, 9, 11, 13, 28, 20, 22]], ['Студия', s3, [13, 20, 12, 12, 13, 14, 14, 12, 28]],
       ['Условия студий', s4, [22, 18, 26, 16]], ['Мини-группы', s6, [22, 30, 9, 15, 12, 10, 28]], ['Участники мини-групп', s7, [22, 18, 9, 15, 12]],
-      ['Онлайн-группа', s8, [18, 24, 9, 12, 28]], ['Абонементы', s9, [18, 12, 11, 13, 13, 14, 13, 11, 13, 26]], ['По месяцам (справка)', s5, [20, 10, 15, 15, 15, 15, 15, 15, 15, 17, 17, 17]]];
+      ['Онлайн-группа', s8, [18, 24, 9, 12, 28]], ['Абонементы', s9, [18, 12, 11, 13, 13, 14, 13, 11, 13, 26]], ['Налог', s10, [26, 14, 11]], ['Десятина', s11, [13, 14, 9, 8, 28]], ['Настройки', s12, [22, 12]], ['По месяцам (справка)', s5, [20, 10, 15, 15, 15, 15, 15, 15, 15, 17, 17, 17, 13, 13, 13, 15, 15, 15]]];
     var files = [];
     files.push({ name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
       sheets.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') +
@@ -1725,6 +1903,13 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     if (s === '$' || s === 'доллары' || s === 'usd' || s === 'долл') return '$';
     return '';
   }
+  function vMonth(v) {
+    var d = vDate(v); if (d) return d.slice(0, 7);
+    var s = String(v == null ? '' : v).trim(), a = /^(\d{1,2})[.\/](\d{4})$/.exec(s);
+    if (a) return a[2] + '-' + p2(+a[1]);
+    a = /^(\d{4})-(\d{1,2})$/.exec(s);
+    return a ? a[1] + '-' + p2(+a[2]) : '';
+  }
   function vOne(v, list, dflt) { var s = String(v == null ? '' : v).trim().toLowerCase(); for (var i = 0; i < list.length; i++) if (list[i].toLowerCase() === s) return list[i]; return dflt; }
 
   function parseBackup(book) {
@@ -1807,6 +1992,30 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
       if (rate == null) { var cfg = out.studios.filter(function (z) { return z.name === tname; })[0]; rate = cfg ? cfg.base + cfg.step * (Math.min(tn, cfg.cap) - 1) : 0; }
       out.studio['t' + out.stamp + (n++)] = { date: td, studio: tname, type: ttype, n: tn, rate: rate, adjust: vNum(row[tm['корректировка']]) || 0, paid: vBool(row[tm['выплачено']]), note: vText(row[tm['заметка']]) };
     }
+    var txs = book['Налог'], tps = book['Десятина'], cfs = book['Настройки'];
+    out.tax = { ind: {}, grp: {}, onl: {} }; out.tpays = {}; out.tpct = null; out.hasTax = !!(txs || tps || cfs);
+    if (txs) {
+      var xm = colMap(txs[0]);
+      for (r = 1; r < txs.length; r++) {
+        var xr = txs[r] || [], xs = nh(xr[xm['раздел']]), xk = xs.indexOf('индив') === 0 ? 'ind' : xs.indexOf('мини') === 0 ? 'grp' : xs.indexOf('онлайн') === 0 ? 'onl' : '', xmo = vMonth(xr[xm['месяц']]), xp = vNum(xr[xm['налог %']]);
+        if (!xs && !xmo) continue;
+        if (!xk || !xmo || xp == null) { out.skipped++; continue; }
+        out.tax[xk][xmo] = Math.max(0, Math.min(100, xp));
+      }
+    }
+    if (tps) {
+      var pm = colMap(tps[0]);
+      for (r = 1; r < tps.length; r++) {
+        var pr = tps[r] || [], pd = vDate(pr[pm['дата']]), pa = vNum(pr[pm['сумма']]), pc = vCur(pr[pm['валюта']]);
+        if (!pd && pa == null) continue;
+        if (!pd || !(pa > 0) || !pc) { out.skipped++; continue; }
+        out.tpays['p' + out.stamp + (n++)] = { date: pd, amount: pa, cur: pc, year: Math.round(vNum(pr[pm['за год']]) || +pd.slice(0, 4)), note: vText(pr[pm['заметка']]) };
+      }
+    }
+    if (cfs) {
+      var cm2 = colMap(cfs[0]);
+      for (r = 1; r < cfs.length; r++) { var cr = cfs[r] || []; if (nh(cr[cm2['параметр']]).indexOf('процент десятины') === 0) { var cv = vNum(cr[cm2['значение']]); if (cv != null) out.tpct = Math.max(0, Math.min(100, cv)); } }
+    }
     return out;
   }
   function importFile(f) {
@@ -1816,13 +2025,13 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
   }
   function confirmImport(p, fname) {
     var cnt = function (o) { return Object.keys(o).length; };
-    var html = '<h2>Загрузить копию?</h2><p style="margin:0 0 8px">Файл «' + esc(fname) + '»: клиентов — <b>' + cnt(p.clients) + '</b>, занятий — <b>' + cnt(p.sessions) + '</b>, занятий в студии — <b>' + cnt(p.studio) + '</b>, мини-групп — <b>' + cnt(p.groups) + '</b>, участников онлайн-группы — <b>' + cnt(p.members) + '</b>, абонементов — <b>' + cnt(p.subs) + '</b>.</p>' +
-      '<p style="margin:0 0 8px">Сейчас в приложении: клиентов — ' + cnt(S.clients) + ', занятий — ' + cnt(S.sessions) + ', в студии — ' + cnt(S.studio) + ', мини-групп — ' + cnt(S.groups) + ', участников онлайн-группы — ' + cnt(S.members) + ', абонементов — ' + cnt(S.subs) + '. Эти данные будут <b>заменены</b> данными из файла.</p>' +
+    var html = '<h2>Загрузить копию?</h2><p style="margin:0 0 8px">Файл «' + esc(fname) + '»: клиентов — <b>' + cnt(p.clients) + '</b>, занятий — <b>' + cnt(p.sessions) + '</b>, занятий в студии — <b>' + cnt(p.studio) + '</b>, мини-групп — <b>' + cnt(p.groups) + '</b>, участников онлайн-группы — <b>' + cnt(p.members) + '</b>, абонементов — <b>' + cnt(p.subs) + '</b>' + (p.hasTax ? ', оплат десятины — <b>' + cnt(p.tpays) + '</b>' : '') + '.</p>' +
+      '<p style="margin:0 0 8px">Сейчас в приложении: клиентов — ' + cnt(S.clients) + ', занятий — ' + cnt(S.sessions) + ', в студии — ' + cnt(S.studio) + ', мини-групп — ' + cnt(S.groups) + ', участников онлайн-группы — ' + cnt(S.members) + ', абонементов — ' + cnt(S.subs) + '. Эти данные будут <b>заменены</b> данными из файла.' + (p.hasTax ? '' : ' Налог и оплаты десятины в файле не найдены, они останутся без изменений.') + '</p>' +
       (p.skipped ? '<p class="warn" style="margin:0 0 8px">Пропущено строк с ошибками: ' + p.skipped + ' (нет клиента, даты или типа занятия).</p>' : '') +
       '<div class="actions"><button type="button" class="btn left" data-act="export">Сначала выгрузить текущие данные</button><button type="button" class="btn" data-act="close">Отмена</button><button type="button" class="btn primary" id="doimport">Заменить данные</button></div>';
     openModal(html, function (el) {
       el.querySelector('#doimport').addEventListener('click', function () {
-        S.clients = p.clients; S.sessions = p.sessions; S.studio = p.studio; S.members = p.members; S.subs = p.subs; S.groups = p.groups; if (p.studios.length || !S.studios.length) S.studios = p.studios; S.rd = null;
+        S.clients = p.clients; S.sessions = p.sessions; S.studio = p.studio; S.members = p.members; S.subs = p.subs; S.groups = p.groups; if (p.hasTax) { S.tax = normTax(p.tax); S.tpays = p.tpays; if (p.tpct != null) S.tpct = p.tpct; } if (p.studios.length || !S.studios.length) S.studios = p.studios; S.rd = null;
         saveLocal(); closeModal(); render(); toast('Данные загружены из файла');
       });
     });
@@ -1872,7 +2081,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
     var cnt = function (o) { return Object.keys(o).length; };
     var last = lastBackup ? fmtDate(lastBackup) + ' (' + (dayNum(todayStr()) - dayNum(lastBackup)) + ' ' + plural(dayNum(todayStr()) - dayNum(lastBackup), ['день', 'дня', 'дней']) + ' назад)' : 'ещё не делали';
     return '<div class="grid two">' +
-      '<section class="card"><div class="row"><h3>Сохранить копию</h3></div><p style="margin:0 0 12px">В файл Excel попадут клиенты, журнал занятий, мини-группы, занятия в студии, условия оплаты и онлайн-группа (участники и абонементы). Последняя копия: <b>' + last + '</b>.</p>' +
+      '<section class="card"><div class="row"><h3>Сохранить копию</h3></div><p style="margin:0 0 12px">В файл Excel попадут клиенты, журнал занятий, мини-группы, занятия в студии, условия оплаты онлайн-группа (участники и абонементы), налог по месяцам и оплаты десятины. Последняя копия: <b>' + last + '</b>.</p>' +
       '<dl class="kv" style="margin-bottom:14px"><div><dt>Клиентов</dt><dd>' + cnt(S.clients) + '</dd></div><div><dt>Занятий</dt><dd>' + cnt(S.sessions) + '</dd></div><div><dt>Занятий в студии</dt><dd>' + cnt(S.studio) + '</dd></div><div><dt>Мини-групп</dt><dd>' + cnt(S.groups) + '</dd></div><div><dt>Участников онлайн-группы</dt><dd>' + cnt(S.members) + '</dd></div><div><dt>Абонементов</dt><dd>' + cnt(S.subs) + '</dd></div></dl>' +
       '<button class="btn primary" data-act="export">Выгрузить в Excel</button></section>' +
       '<section class="card"><div class="row"><h3>Восстановить из копии</h3></div><p style="margin:0 0 14px">Выберите файл .xlsx, который выгрузило это приложение. Данные в приложении будут заменены данными из файла. Файл можно править в Excel, колонки менять не нужно.</p>' +
@@ -1880,7 +2089,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
       '<div class="sec" style="margin-top:6px"><h2>Как хранятся данные</h2><div class="card"><p style="margin:0 0 10px">Записи лежат только на этом устройстве, в памяти браузера. В интернет они не отправляются и на другие устройства не попадают.</p>' +
       '<p style="margin:0 0 10px"><b>Сохраняйте копию раз в одну-две недели</b> и не стирайте данные сайтов в настройках Safari: вместе с ними пропадут и записи.</p>' +
       '<p style="margin:0">На iPhone откройте адрес приложения в Safari, нажмите «Поделиться» и «На экран “Домой”». Вводите данные уже в приложении с иконки: у иконки и у Safari память раздельная, записи из одной не видны в другой. Если вводили данные в Safari, выгрузите копию там и загрузите её в приложении с иконки.</p></div></div>' +
-      '<div class="sec"><h2>Стереть все данные</h2><div class="card"><p style="margin:0 0 12px">Удалит всех клиентов, занятия, мини-группы, абонементы и условия студий на этом устройстве. Сначала сделайте копию.</p><button class="btn danger" data-act="wipe">Стереть всё…</button></div></div>';
+      '<div class="sec"><h2>Стереть все данные</h2><div class="card"><p style="margin:0 0 12px">Удалит всех клиентов, занятия, мини-группы, абонементы, налоги, оплаты десятины и условия студий на этом устройстве. Сначала сделайте копию.</p><button class="btn danger" data-act="wipe">Стереть всё…</button></div></div>';
   }
   function openWipe() {
     openModal('<h2>Стереть все данные?</h2><p style="margin:0 0 8px">Будут удалены все клиенты, занятия, мини-группы, абонементы и условия студий на этом устройстве. Это нельзя отменить, если нет копии в Excel.</p>' +
@@ -1888,7 +2097,7 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
       var b = el.querySelector('#dowipe');
       b.addEventListener('click', function () {
         if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'Точно стереть?'; return; }
-        S.clients = {}; S.sessions = {}; S.studio = {}; S.studios = []; S.members = {}; S.subs = {}; S.groups = {}; S.rd = null; saveLocal(); closeModal(); S.tab = 'summary'; render(); toast('Все данные стёрты');
+        S.clients = {}; S.sessions = {}; S.studio = {}; S.studios = []; S.members = {}; S.subs = {}; S.groups = {}; S.tax = { ind: {}, grp: {}, onl: {} }; S.tpays = {}; S.rd = null; saveLocal(); closeModal(); S.tab = 'summary'; render(); toast('Все данные стёрты');
       });
     });
   }
