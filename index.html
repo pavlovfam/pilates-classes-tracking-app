@@ -262,8 +262,8 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
 @media (max-width: 759px) {
   .tabs { margin-top: 2px; row-gap: 2px; }
   .tab { align-self: start; padding: 8px 2px 4px; border-bottom-width: 2px; }
-  .tab[data-id="clients"] { order: 1; } .tab[data-id="studio"] { order: 2; } .tab[data-id="months"] { order: 3; } .tab[data-id="tithe"] { order: 4; }
-  .tab[data-id="summary"] { order: 5; } .tab[data-id="journal"] { order: 6; } .tab[data-id="online"] { order: 7; } .tab[data-id="groups"] { order: 8; }
+  .tab[data-id="summary"] { order: 1; } .tab[data-id="clients"] { order: 2; } .tab[data-id="tithe"] { order: 3; }
+  .tab[data-id="journal"] { order: 4; grid-column-start: 1; } .tab[data-id="online"] { order: 5; } .tab[data-id="studio"] { order: 6; } .tab[data-id="groups"] { order: 7; }
 }
 </style>
 </head>
@@ -296,7 +296,7 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
   var TYPES = ['Реформер', 'Мат'];
   var DIRS = ['Реформер', 'Мат', 'Оба'];
   var STATUSES = ['Активный', 'Пауза', 'Ушёл'];
-  var TABS = [['summary', 'Сводка'], ['journal', 'Журнал'], ['clients', 'Клиенты'], ['groups', 'Мини-группы'], ['studio', 'Студия'], ['online', 'Онлайн-группа'], ['months', 'По месяцам'], ['tithe', 'Десятина']];
+  var TABS = [['summary', 'Сводка'], ['journal', 'Журнал'], ['clients', 'Клиенты'], ['groups', 'Мини-группы'], ['studio', 'Студия'], ['online', 'Онлайн-группа'], ['tithe', 'Десятина']];
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -490,11 +490,8 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
       '<tr class="total"><td>Десятина, ' + TITHE_PCT + '%</td>' + CUR.map(function (c) { return '<td class="num">' + moneyDash(R.due[c], c) + '</td>'; }).join('') + '</tr>';
     h += '</tbody></table></div></div>';
 
-    h += '<div class="sec"><h2>По месяцам <small>чистый доход</small></h2><div class="tablewrap"><table class="tight"><thead><tr><th>Месяц</th>' + CUR.map(function (c) { return '<th class="num">' + c + '</th>'; }).join('') + '</tr></thead><tbody>';
-    R.mon.forEach(function (row, i) { if (CUR.some(function (c) { return row[c]; })) h += '<tr><td>' + MONTHS[i] + '</td>' + CUR.map(function (c) { return '<td class="num">' + moneyDash(row[c], c) + '</td>'; }).join('') + '</tr>'; });
-    if (!CUR.some(function (c) { return R.net[c]; })) h += '<tr><td colspan="4" class="muted">За ' + S.year + ' год оплаченных доходов пока нет.</td></tr>';
-    h += '</tbody></table></div></div>' +
-      '<p class="muted" style="margin-top:10px">В расчёт входят только оплаченные занятия и абонементы (бесплатные доступы не считаются). Налог задаётся по месяцам на вкладках «Журнал», «Мини-группы» и «Онлайн-группа». Доход студии идёт без налога.</p>';
+    h +=
+      '<p class="muted" style="margin-top:10px">В расчёт входят только оплаченные занятия и абонементы (бесплатные доступы не считаются). Налог задаётся по месяцам на вкладках «Журнал», «Мини-группы» и «Онлайн-группа». Доход студии идёт без налога. Чистый доход по месяцам смотрите в «Сводке», внизу.</p>';
     return h;
   }
   function remainFor(year, cur, exId) {
@@ -560,18 +557,22 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
   function emptyBox(title, text) { return '<div class="empty"><b>' + esc(title) + '</b>' + text + '</div>'; }
 
   /* ---------- Сводка ---------- */
-  /* итого за месяц и за год, чистыми после налога, по каждой валюте */
+  /* итого за месяц и за год, чистыми после налога, по каждой валюте; десятина 10% */
   function summaryTotalsHTML(m) {
     var y = +m.slice(0, 4), mi = +m.slice(5, 7) - 1, R = titheYear(y);
-    var h = '<div class="sec"><h2>Итого и десятина <small>чистыми, после налога. Курс не используется</small></h2><div class="grid four">';
-    CUR.forEach(function (c) {
-      var mn = R.mon[mi][c], yn = R.net[c];
-      h += '<section class="card' + (mn || yn ? '' : ' dim') + '"><div class="row"><div class="who">' + curBadge(c) + '<h3>' + CURNAME[c] + '</h3></div></div>' +
-        '<dl class="kv"><div><dt>' + MONTHS[mi] + ': чистыми</dt><dd><b>' + (mn ? money(mn, c) : '—') + '</b></dd></div>' +
-        '<div><dt>' + MONTHS[mi] + ': десятина ' + TITHE_PCT + '%</dt><dd>' + (mn ? money(mn * TITHE_PCT / 100, c) : '—') + '</dd></div>' +
-        '<div><dt>' + y + ' год: чистыми</dt><dd><b>' + (yn ? money(yn, c) : '—') + '</b></dd></div></dl></section>';
-    });
-    return h + '</div><p class="muted" style="margin-top:8px">Оплаченное минус налог: клиенты, мини-группы, онлайн-группа и студия (студия без налога). Десятина за год и её оплаты — на вкладке «Десятина».</p></div>';
+    function block(title, sub, pick, cls) {
+      var h = '<div class="sec"><h2>' + title + ' <small>' + sub + '</small></h2><div class="grid four">';
+      CUR.forEach(function (c) {
+        var v = pick(c);
+        h += '<section class="card' + (v ? '' : ' dim') + '"><div class="row"><div class="who">' + curBadge(c) + '<h3>' + CURNAME[c] + '</h3></div></div>' +
+          '<div class="big">' + (v ? money(v, c) : '—') + '</div><div class="biglabel">чистыми</div>' +
+          '<dl class="kv"><div><dt>Десятина ' + TITHE_PCT + '%</dt><dd><b>' + (v ? money(v * TITHE_PCT / 100, c) : '—') + '</b></dd></div></dl></section>';
+      });
+      return h + '</div></div>';
+    }
+    return block('Итого за ' + MONTHS[mi].toLowerCase() + ' ' + y, 'после налога, курс не используется', function (c) { return R.mon[mi][c]; }) +
+      block('Итого за ' + y + ' год', 'после налога, курс не используется', function (c) { return R.net[c]; }) +
+      '<p class="muted" style="margin-top:8px">Чистыми: оплаченное минус налог. Клиенты, мини-группы, онлайн-группа и студия (студия без налога). Сколько десятины отдано и сколько осталось — на вкладке «Десятина».</p>';
   }
   function viewSummary() {
     if (!hasAnyData()) return welcomeHTML();
@@ -636,6 +637,7 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
       h += '</tbody></table></div>';
     }
     h += '</div>';
+    h += viewMonths(+m.slice(0, 4));
     return h;
   }
 
@@ -814,12 +816,12 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
     });
     return h + '</div><div class="tip" id="tip" hidden></div></div>';
   }
-  function viewMonths() {
-    var y = S.year, rows = monthRows(y);
+  function viewMonths(y) {
+    var rows = monthRows(y);
     var tot = { n: 0, r: 0, m: 0, acc: emptyCur(), debt: emptyCur(), studio: 0, og: emptyCur(), ogDebt: emptyCur(), ogFree: 0, tx: emptyCur(), nt: emptyCur() };
-    rows.forEach(function (r) { tot.n += r.n; tot.r += r.r; tot.m += r.m; tot.studio += r.studio; tot.ogFree += r.ogFree; CUR.forEach(function (c) { tot.acc[c] += r.acc[c]; tot.debt[c] += r.debt[c]; tot.og[c] += r.og[c]; tot.ogDebt[c] += r.ogDebt[c]; tot.tx[c] += r.ctax[c] + r.otax[c]; tot.nt[c] += r.cpaid[c] - r.ctax[c] + r.opaid[c] - r.otax[c]; }); });
+    rows.forEach(function (r) { tot.n += r.n; tot.r += r.r; tot.m += r.m; tot.studio += r.studio; tot.ogFree += r.ogFree; CUR.forEach(function (c) { tot.acc[c] += r.acc[c]; tot.debt[c] += r.debt[c]; tot.og[c] += r.og[c]; tot.ogDebt[c] += r.ogDebt[c]; tot.tx[c] += r.ctax[c] + r.otax[c]; tot.nt[c] += r.cpaid[c] - r.ctax[c] + r.opaid[c] - r.otax[c] + (c === '₸' ? r.spaid : 0); }); });
     var ogCell = function (v, d, c) { return '<td class="num">' + moneyDash(v, c) + (d > 0 ? '<div class="cell-sub warn">не оплачено ' + money(d, c) + '</div>' : '') + '</td>'; };
-    var h = '<div class="sec" style="margin-top:0"><h2>Доход по месяцам <small>на графиках чистыми: оплачено минус налог. У каждого графика свой масштаб, курс не используется</small></h2>' + chartHTML(rows) + '</div>';
+    var h = '<div class="sec"><h2>Доход по месяцам, ' + y + ' <small>год выбирается вверху, месяц на этот раздел не влияет. На графиках чистыми: оплачено минус налог. У каждого графика свой масштаб, курс не используется</small></h2>' + chartHTML(rows) + '</div>';
     h += '<div class="sec"><h2>Все месяцы ' + y + ' <small>валюты не пересчитываются по курсу</small></h2><div class="tablewrap"><table style="min-width:1780px"><thead><tr><th>Месяц</th><th class="num">Занятий</th><th class="num">Реф.</th><th class="num">Мат</th>' +
       '<th class="num">Начислено ₸</th><th class="num">Начислено ₽</th><th class="num">Начислено $</th><th class="num">Не оплачено ₸</th><th class="num">Не оплачено ₽</th><th class="num">Не оплачено $</th><th class="num">Студия ₸</th><th class="num">Онлайн ₸</th><th class="num">Онлайн ₽</th><th class="num">Онлайн $</th><th class="num">Налог ₸</th><th class="num">Налог ₽</th><th class="num">Налог $</th><th class="num">Чистыми ₸</th><th class="num">Чистыми ₽</th><th class="num">Чистыми $</th></tr></thead><tbody>';
     var cur = todayStr().slice(0, 7);
@@ -829,14 +831,14 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
         CUR.map(function (c) { return '<td class="num">' + moneyDash(r.acc[c], c) + '</td>'; }).join('') +
         CUR.map(function (c) { return '<td class="num ' + (r.debt[c] > 0 ? 'warn' : '') + '">' + moneyDash(r.debt[c], c) + '</td>'; }).join('') +
         '<td class="num">' + moneyDash(r.studio, '₸') + '</td>' + CUR.map(function (c) { return ogCell(r.og[c], r.ogDebt[c], c); }).join('') +
-        CUR.map(function (c) { return '<td class="num">' + moneyDash(r.ctax[c] + r.otax[c], c) + '</td>'; }).join('') + CUR.map(function (c) { return '<td class="num"><b>' + (r.cpaid[c] + r.opaid[c] ? money(r.cpaid[c] - r.ctax[c] + r.opaid[c] - r.otax[c], c) : '<span class="muted">—</span>') + '</b></td>'; }).join('') + '</tr>';
+        CUR.map(function (c) { return '<td class="num">' + moneyDash(r.ctax[c] + r.otax[c], c) + '</td>'; }).join('') + CUR.map(function (c) { return '<td class="num"><b>' + (r.cpaid[c] + r.opaid[c] + (c === '₸' ? r.spaid : 0) ? money(r.cpaid[c] - r.ctax[c] + r.opaid[c] - r.otax[c] + (c === '₸' ? r.spaid : 0), c) : '<span class="muted">—</span>') + '</b></td>'; }).join('') + '</tr>';
     });
     h += '<tr class="total"><td>Итого</td><td class="num">' + tot.n + '</td><td class="num">' + tot.r + '</td><td class="num">' + tot.m + '</td>' +
       CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.acc[c], c) + '</td>'; }).join('') +
       CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.debt[c], c) + '</td>'; }).join('') +
       '<td class="num">' + moneyDash(tot.studio, '₸') + '</td>' + CUR.map(function (c) { return ogCell(tot.og[c], tot.ogDebt[c], c); }).join('') +
       CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.tx[c], c) + '</td>'; }).join('') + CUR.map(function (c) { return '<td class="num">' + moneyDash(tot.nt[c], c) + '</td>'; }).join('') + '</tr></tbody></table></div>' +
-      (tot.ogFree ? '<p class="muted" style="margin-top:10px">Бесплатных доступов в онлайн-группе за год: ' + tot.ogFree + '. Платные абонементы учитываются в месяц покупки.</p>' : '<p class="muted" style="margin-top:10px">Абонементы онлайн-группы учитываются в месяц покупки.</p>') + '<p class="muted" style="margin-top:6px">Чистыми: оплаченное (клиенты и онлайн-группа) минус налог. Налог задаётся по месяцам на вкладках «Журнал», «Мини-группы» и «Онлайн-группа». На графиках студия показана выплаченной.</p></div>';
+      (tot.ogFree ? '<p class="muted" style="margin-top:10px">Бесплатных доступов в онлайн-группе за год: ' + tot.ogFree + '. Платные абонементы учитываются в месяц покупки.</p>' : '<p class="muted" style="margin-top:10px">Абонементы онлайн-группы учитываются в месяц покупки.</p>') + '<p class="muted" style="margin-top:6px">Чистыми: оплаченное минус налог (клиенты, мини-группы, онлайн-группа, а в тенге ещё и выплаты за студию, студия без налога). Налог задаётся по месяцам на вкладках «Журнал», «Мини-группы» и «Онлайн-группа». На графиках студия показана выплаченной.</p></div>';
     return h;
   }
 
@@ -1614,7 +1616,7 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
       case 'mnext': shiftMonth(1); render(); break;
       case 'yprev': S.year--; render(); break;
       case 'ynext': S.year++; render(); break;
-      case 'openmonth': S.month = id; S.tab = 'summary'; render(); break;
+      case 'openmonth': S.month = id; S.tab = 'summary'; render(); window.scrollTo(0, 0); break;
       case 'fstatus': S.fStatus = id; render(); break;
       case 'gounpaid': S.tab = 'journal'; S.onlyUnpaid = true; S.fClient = ''; render(); break;
       case 'addsession': openSession(); break;
@@ -1800,6 +1802,7 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
       subList().forEach(function (a) { if (a.free || boughtOf(a).indexOf(k) !== 0) return; var c = memberCur(a.memberId); if (c in og) og[c] += Number(a.price) || 0; });
       var pms = ms.filter(function (s) { return s.paid; }), tx = sumByCur(pms, sessTax), cp = sumByCur(pms, priceOf);
       subList().forEach(function (a) { if (a.free || !a.paid || boughtOf(a).indexOf(k) !== 0) return; var c = memberCur(a.memberId); if (c in tx) { tx[c] += subTax(a); cp[c] += Number(a.price) || 0; } });
+      studioList().forEach(function (t) { if (t.paid && t.date.indexOf(k) === 0) cp['₸'] += studioTotal(t); });
       s5.push([MONTHS[+k.slice(5) - 1] + ' ' + k.slice(0, 4), units(ms), m(agg['₸'].sum, '₸'), m(agg['₽'].sum, '₽'), m(agg['$'].sum, '$'), m(unpaid['₸'].sum, '₸'), m(unpaid['₽'].sum, '₽'), m(unpaid['$'].sum, '$'), m(st, '₸'), m(og['₸'], '₸'), m(og['₽'], '₽'), m(og['$'], '$'), m(tx['₸'], '₸'), m(tx['₽'], '₽'), m(tx['$'], '$'), m(cp['₸'] - tx['₸'], '₸'), m(cp['₽'] - tx['₽'], '₽'), m(cp['$'] - tx['$'], '$')]);
     });
     var s6 = [['Название', 'Режим', 'Валюта', 'Цена: реформер', 'Цена: мат', 'В архиве', 'Заметка']];
