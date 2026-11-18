@@ -247,13 +247,31 @@ button, select, .chip, .tab { touch-action: manipulation; -webkit-tap-highlight-
 table.tight { min-width: 0; }
 table.tight th:first-child { white-space: normal; }
 table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
+/* шапка: две строки вкладок, кнопка «Копия» справа */
+.head { flex-wrap: nowrap; align-items: flex-start; }
+.brand { min-width: 0; gap: 0 12px; }
+.bkbtn { position: relative; flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 500; color: var(--fg); }
+.bkbtn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-ink); }
+.bkbtn.due::after { content: ''; position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--warn); border: 2px solid var(--bg); }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 2px; overflow: visible; margin-top: 8px; }
+.tab { padding: 8px 2px 7px; text-align: center; font-size: 13px; }
+@media (min-width: 760px) { .tabs { display: flex; gap: 4px; } .tab { padding: 9px 14px 8px; font-size: inherit; } }
+/* вкладки на телефоне: порядок по рядам, подчёркивание ближе к тексту */
+.tab[data-id="online"] { white-space: normal; line-height: 1.15; }
+@media (min-width: 760px) { .tab[data-id="online"] { white-space: nowrap; } }
+@media (max-width: 759px) {
+  .tabs { margin-top: 2px; row-gap: 2px; }
+  .tab { align-self: start; padding: 8px 2px 4px; border-bottom-width: 2px; }
+  .tab[data-id="clients"] { order: 1; } .tab[data-id="studio"] { order: 2; } .tab[data-id="months"] { order: 3; } .tab[data-id="tithe"] { order: 4; }
+  .tab[data-id="summary"] { order: 5; } .tab[data-id="journal"] { order: 6; } .tab[data-id="online"] { order: 7; } .tab[data-id="groups"] { order: 8; }
+}
 </style>
 </head>
 <body><div class="app">
   <div class="top">
     <div class="head">
       <div class="brand"><h1>Учёт пилатеса</h1><span class="sub">реформер · мат · студия</span></div>
-      <span id="mode" class="modebadge"></span>
+      <button type="button" id="bkbtn" class="bkbtn" data-act="tab" data-id="backup" title="Резервная копия">Копия</button>
     </div>
     <nav class="tabs" id="tabs" role="tablist" aria-label="Разделы"></nav>
   </div>
@@ -278,7 +296,7 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
   var TYPES = ['Реформер', 'Мат'];
   var DIRS = ['Реформер', 'Мат', 'Оба'];
   var STATUSES = ['Активный', 'Пауза', 'Ушёл'];
-  var TABS = [['summary', 'Сводка'], ['journal', 'Журнал'], ['clients', 'Клиенты'], ['groups', 'Мини-группы'], ['studio', 'Студия'], ['online', 'Онлайн-группа'], ['months', 'По месяцам'], ['tithe', 'Десятина'], ['backup', 'Копия']];
+  var TABS = [['summary', 'Сводка'], ['journal', 'Журнал'], ['clients', 'Клиенты'], ['groups', 'Мини-группы'], ['studio', 'Студия'], ['online', 'Онлайн-группа'], ['months', 'По месяцам'], ['tithe', 'Десятина']];
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -306,7 +324,7 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
   var busy = {};
   var LKEY = 'uchet-pilatesa-v1';
 
-  try { var t0 = localStorage.getItem('uchet-pilatesa-tab'); if (t0 && TABS.some(function (t) { return t[0] === t0; })) S.tab = t0; } catch (e) { }
+  try { var t0 = localStorage.getItem('uchet-pilatesa-tab'); if (t0 && (t0 === 'backup' || TABS.some(function (t) { return t[0] === t0; }))) S.tab = t0; } catch (e) { }
 
   var lastBackup = '';
   try { lastBackup = localStorage.getItem('uchet-pilatesa-backup') || ''; } catch (e) { }
@@ -542,6 +560,19 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
   function emptyBox(title, text) { return '<div class="empty"><b>' + esc(title) + '</b>' + text + '</div>'; }
 
   /* ---------- Сводка ---------- */
+  /* итого за месяц и за год, чистыми после налога, по каждой валюте */
+  function summaryTotalsHTML(m) {
+    var y = +m.slice(0, 4), mi = +m.slice(5, 7) - 1, R = titheYear(y);
+    var h = '<div class="sec"><h2>Итого и десятина <small>чистыми, после налога. Курс не используется</small></h2><div class="grid four">';
+    CUR.forEach(function (c) {
+      var mn = R.mon[mi][c], yn = R.net[c];
+      h += '<section class="card' + (mn || yn ? '' : ' dim') + '"><div class="row"><div class="who">' + curBadge(c) + '<h3>' + CURNAME[c] + '</h3></div></div>' +
+        '<dl class="kv"><div><dt>' + MONTHS[mi] + ': чистыми</dt><dd><b>' + (mn ? money(mn, c) : '—') + '</b></dd></div>' +
+        '<div><dt>' + MONTHS[mi] + ': десятина ' + TITHE_PCT + '%</dt><dd>' + (mn ? money(mn * TITHE_PCT / 100, c) : '—') + '</dd></div>' +
+        '<div><dt>' + y + ' год: чистыми</dt><dd><b>' + (yn ? money(yn, c) : '—') + '</b></dd></div></dl></section>';
+    });
+    return h + '</div><p class="muted" style="margin-top:8px">Оплаченное минус налог: клиенты, мини-группы, онлайн-группа и студия (студия без налога). Десятина за год и её оплаты — на вкладке «Десятина».</p></div>';
+  }
   function viewSummary() {
     if (!hasAnyData()) return welcomeHTML();
     var m = S.month, weeks = daysInMonth(m) / 7;
@@ -566,6 +597,7 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
       '<div><dt>Средняя ставка за занятие</dt><dd>' + (st.length ? money(sAcc / st.length, '₸') : '—') + '</dd></div></dl></section>';
     h += '</div>';
     h += onlineCardHTML(m);
+    h += summaryTotalsHTML(m);
 
     var unpaidCount = ms.filter(function (s) { return !s.paid; }).length;
     if (unpaidCount) {
@@ -1024,9 +1056,9 @@ table.tight th, table.tight td { padding-left: 8px; padding-right: 8px; }
 
   /* ---------- общий рендер ---------- */
   function render() {
-    var mode = $('#mode');
-    mode.className = 'modebadge';
-    mode.textContent = 'Данные хранятся на этом устройстве';
+    var bk = $('#bkbtn');
+    bk.className = 'bkbtn' + (S.ready && needBackup() ? ' due' : '');
+    bk.setAttribute('aria-pressed', String(S.tab === 'backup'));
     $('#tabs').innerHTML = TABS.map(function (t) { return '<button class="tab" role="tab" data-act="tab" data-id="' + t[0] + '" aria-selected="' + (S.tab === t[0]) + '">' + t[1] + '</button>'; }).join('');
 
     var banner = '';
